@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Kiosco - Panel de Control</title>
     <link rel="stylesheet" href="css/admin.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="admin-body">
     <header class="admin-header">
@@ -36,6 +37,26 @@
         </div>
 
         <div id="adminDashboard" style="display:none;">
+            <!-- Gráficas de Ventas -->
+            <div class="admin-section">
+                <h2>📈 Gráficas de Ventas</h2>
+                <div class="chart-filters">
+                    <button id="chartDay" class="filter-btn active">📅 Últimos 7 días</button>
+                    <button id="chartMonth" class="filter-btn">📆 Últimos 30 días</button>
+                    <button id="chartYear" class="filter-btn">📊 Últimos 12 meses</button>
+                </div>
+                <div class="charts-container">
+                    <div class="chart-box">
+                        <h3>💰 Ingresos por período</h3>
+                        <canvas id="revenueChart" width="400" height="200"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <h3>📦 Productos más vendidos</h3>
+                        <canvas id="topProductsChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+
             <div class="stats-grid">
                 <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-info"><h3 id="totalProducts">0</h3><p>Productos</p></div></div>
                 <div class="stat-card"><div class="stat-icon">🛒</div><div class="stat-info"><h3 id="totalOrders">0</h3><p>Pedidos</p></div></div>
@@ -53,6 +74,7 @@
                         <select id="categorySelect" class="form-control"></select>
                         <input type="text" id="productName" placeholder="Nombre" class="form-control">
                         <input type="number" id="productPrice" placeholder="Precio S/" class="form-control" step="0.5">
+                        <input type="number" id="productStock" placeholder="Stock" class="form-control" value="0">
                         <button id="addProductBtn" class="btn-success">➕ Agregar</button>
                     </div>
                     <div id="productsAdminList"></div>
@@ -79,6 +101,22 @@
             </div>
         </div>
     </main>
+
+    <div id="imageModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <h3>🖼️ Seleccionar imagen</h3>
+            <div style="margin: 1rem 0;">
+                <input type="file" id="imageUpload" accept="image/*" style="margin-bottom: 1rem;">
+                <div id="imagePreview" style="width: 150px; height: 150px; margin: 0 auto; border: 2px dashed #ddd; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                    <span style="color: #999;">Vista previa</span>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button id="saveImageBtn" class="btn-success">Guardar imagen</button>
+                <button id="cancelImageBtn" class="btn-danger">Cancelar</button>
+            </div>
+        </div>
+    </div>
 
     <div id="confirmModal" class="modal">
         <div class="modal-content">

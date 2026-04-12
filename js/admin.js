@@ -1,6 +1,11 @@
+// Variables para gráficas
+let revenueChart = null;
+let topProductsChart = null;
+
 // Estado
 let currentOrders = [];
 let currentFilter = 'day';
+let currentProductForImage = null;
 
 // DOM Elements
 const loginDiv = document.getElementById('adminLogin');
@@ -16,7 +21,14 @@ const ordersList = document.getElementById('ordersList');
 const logoutBtn = document.getElementById('logoutAdmin');
 const themeToggle = document.getElementById('themeToggle');
 
-// Modal
+// Modal de imagen
+const imageModal = document.getElementById('imageModal');
+const imageUpload = document.getElementById('imageUpload');
+const imagePreview = document.getElementById('imagePreview');
+const saveImageBtn = document.getElementById('saveImageBtn');
+const cancelImageBtn = document.getElementById('cancelImageBtn');
+
+// Modal de confirmación
 const confirmModal = document.getElementById('confirmModal');
 let pendingAction = null;
 
@@ -50,7 +62,186 @@ function showToast(message, type) {
     setTimeout(() => toast.remove(), 3000);
 }
 
-// Login
+// ============ GRÁFICAS ============
+function initCharts() {
+    updateRevenueChart('week');
+    updateTopProductsChart();
+}
+
+function updateRevenueChart(period) {
+    let data = [];
+    let labels = [];
+    
+    if (period === 'week') {
+        const salesData = getSalesByDay(7);
+        data = salesData.map(d => d.total);
+        labels = salesData.map(d => {
+            const date = new Date(d.date);
+            return date.toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric' });
+        });
+    } else if (period === 'month') {
+        const salesData = getSalesByDay(30);
+        data = salesData.map(d => d.total);
+        labels = salesData.map(d => {
+            const date = new Date(d.date);
+            return `${date.getDate()}/${date.getMonth() + 1}`;
+        });
+    } else {
+        const salesData = getSalesByMonth(12);
+        data = salesData.map(d => d.total);
+        labels = salesData.map(d => {
+            const [year, month] = d.month.split('-');
+            return new Date(year, month - 1).toLocaleDateString('es-PE', { month: 'short' });
+        });
+    }
+    
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    if (revenueChart) revenueChart.destroy();
+    
+    revenueChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Ingresos (S/)',
+                data: data,
+                borderColor: '#6366f1',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#6366f1',
+                pointBorderColor: '#fff',
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: { 
+                    callbacks: {
+                        label: function(context) {
+                            return `S/ ${context.raw.toFixed(2)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'S/ ' + value;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateTopProductsChart() {
+    const topProducts = getTopProducts(5);
+    const ctx = document.getElementById('topProductsChart').getContext('2d');
+    if (topProductsChart) topProductsChart.destroy();
+    
+    topProductsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: topProducts.map(p => p.name),
+            datasets: [{
+                label: 'Cantidad vendida',
+                data: topProducts.map(p => p.quantity),
+                backgroundColor: 'rgba(99, 102, 241, 0.8)',
+                borderColor: '#6366f1',
+                borderWidth: 1,
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: { 
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.raw} unidades vendidas`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 }
+                }
+            }
+        }
+    });
+}
+
+// ============ FUNCIONES DE IMAGEN ============
+function openImageModal(productId, productName, currentImage) {
+    currentProductForImage = productId;
+    document.querySelector('#imageModal h3').textContent = `🖼️ Imagen para: ${productName}`;
+    imageUpload.value = '';
+    imagePreview.innerHTML = '<span style="color: #999;">Vista previa</span>';
+    
+    if (currentImage) {
+        const img = document.createElement('img');
+        img.src = currentImage;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+        imagePreview.innerHTML = '';
+        imagePreview.appendChild(img);
+    }
+    
+    imageModal.style.display = 'flex';
+}
+
+imageUpload.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = document.createElement('img');
+            img.src = event.target.result;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            imagePreview.innerHTML = '';
+            imagePreview.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+saveImageBtn.onclick = () => {
+    const previewImg = imagePreview.querySelector('img');
+    if (previewImg) {
+        saveProductImage(currentProductForImage, previewImg.src);
+        showToast('✅ Imagen guardada correctamente', 'success');
+        loadAdminData();
+    } else {
+        deleteProductImage(currentProductForImage);
+        showToast('🗑️ Imagen eliminada', 'info');
+        loadAdminData();
+    }
+    imageModal.style.display = 'none';
+    currentProductForImage = null;
+};
+
+cancelImageBtn.onclick = () => {
+    imageModal.style.display = 'none';
+    currentProductForImage = null;
+};
+
+// ============ LOGIN ============
 if (loginBtn) {
     loginBtn.onclick = () => {
         const phone = adminPhone.value;
@@ -58,6 +249,7 @@ if (loginBtn) {
             loginDiv.style.display = 'none';
             dashboardDiv.style.display = 'block';
             loadAdminData();
+            initCharts();
             showToast('✅ Bienvenido Administrador', 'success');
         } else {
             showToast('❌ Número no autorizado', 'error');
@@ -114,6 +306,7 @@ function loadCategoriesSelect() {
 
 function renderProductsAdmin() {
     const products = getProducts();
+    const productImages = getProductImages();
     if (!productsAdminList) return;
     productsAdminList.innerHTML = '';
     
@@ -125,15 +318,60 @@ function renderProductsAdmin() {
         items.forEach(prod => {
             const prodDiv = document.createElement('div');
             prodDiv.className = 'product-item';
+            const imageUrl = productImages[prod.id];
+            const imageHtml = imageUrl ? `<img src="${imageUrl}" class="product-image" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover;">` : '<div style="width: 40px; height: 40px; background: #e2e8f0; border-radius: 8px; display: flex; align-items: center; justify-content: center;">📷</div>';
+            
             prodDiv.innerHTML = `
-                <span><strong>${prod.name}</strong> - S/ ${prod.price}</span>
-                <button class="btn-danger delete-product" data-cat="${cat}" data-id="${prod.id}" data-name="${prod.name}">🗑️ Eliminar</button>
+                <div class="product-info">
+                    ${imageHtml}
+                    <div>
+                        <strong>${prod.name}</strong><br>
+                        <small>S/ ${prod.price} | Stock: ${prod.stock || 0}</small>
+                    </div>
+                </div>
+                <div>
+                    <button class="image-upload-btn" data-id="${prod.id}" data-name="${prod.name}">🖼️ Imagen</button>
+                    <button class="edit-stock" data-cat="${cat}" data-id="${prod.id}" data-name="${prod.name}" data-stock="${prod.stock || 0}" style="background:#3b82f6; color:white; border:none; padding:0.3rem 0.8rem; border-radius:8px; margin:0 0.5rem; cursor:pointer;">📦 Stock</button>
+                    <button class="btn-danger delete-product" data-cat="${cat}" data-id="${prod.id}" data-name="${prod.name}">🗑️</button>
+                </div>
             `;
             catDiv.appendChild(prodDiv);
         });
         productsAdminList.appendChild(catDiv);
     }
     
+    // Botones de imagen
+    document.querySelectorAll('.image-upload-btn').forEach(btn => {
+        btn.onclick = () => {
+            const id = parseInt(btn.dataset.id);
+            const name = btn.dataset.name;
+            const currentImage = getProductImage(id);
+            openImageModal(id, name, currentImage);
+        };
+    });
+    
+    // Botones de stock
+    document.querySelectorAll('.edit-stock').forEach(btn => {
+        btn.onclick = () => {
+            const cat = btn.dataset.cat;
+            const id = parseInt(btn.dataset.id);
+            const name = btn.dataset.name;
+            const currentStock = parseInt(btn.dataset.stock);
+            const newStock = prompt(`Stock actual de "${name}": ${currentStock}\nIngrese nuevo stock:`, currentStock);
+            if (newStock !== null && !isNaN(parseInt(newStock))) {
+                let products = getProducts();
+                const product = products[cat].find(p => p.id === id);
+                if (product) {
+                    product.stock = parseInt(newStock);
+                    saveProducts(products);
+                    loadAdminData();
+                    showToast(`✅ Stock de "${name}" actualizado`, 'success');
+                }
+            }
+        };
+    });
+    
+    // Botones de eliminar
     document.querySelectorAll('.delete-product').forEach(btn => {
         btn.onclick = () => {
             const cat = btn.dataset.cat;
@@ -144,6 +382,7 @@ function renderProductsAdmin() {
                 products[cat] = products[cat].filter(p => p.id !== id);
                 if (products[cat].length === 0) delete products[cat];
                 saveProducts(products);
+                deleteProductImage(id);
                 loadAdminData();
                 showToast(`✅ "${name}" eliminado`, 'success');
             });
@@ -205,14 +444,16 @@ if (addProductBtn) {
         const category = categorySelect.value;
         const name = document.getElementById('productName').value.trim();
         const price = parseFloat(document.getElementById('productPrice').value);
+        const stock = parseInt(document.getElementById('productStock')?.value || 0);
         
         if (category && name && price > 0) {
             const products = getProducts();
-            products[category].push({ id: Date.now(), name, price });
+            products[category].push({ id: Date.now(), name, price, stock: stock || 0 });
             saveProducts(products);
             loadAdminData();
             document.getElementById('productName').value = '';
             document.getElementById('productPrice').value = '';
+            if (document.getElementById('productStock')) document.getElementById('productStock').value = '';
             showToast(`✅ "${name}" agregado`, 'success');
         } else {
             showToast('Completa todos los campos', 'error');
@@ -319,6 +560,23 @@ function updateFilterButtons(active) {
     if (active === 'month' && filterMonth) filterMonth.classList.add('active');
 }
 
+// Filtros de gráficas
+const chartDay = document.getElementById('chartDay');
+const chartMonth = document.getElementById('chartMonth');
+const chartYear = document.getElementById('chartYear');
+
+if (chartDay) chartDay.onclick = () => { updateRevenueChart('week'); updateFilterChart('week'); };
+if (chartMonth) chartMonth.onclick = () => { updateRevenueChart('month'); updateFilterChart('month'); };
+if (chartYear) chartYear.onclick = () => { updateRevenueChart('year'); updateFilterChart('year'); };
+
+function updateFilterChart(active) {
+    const btns = document.querySelectorAll('.chart-filters .filter-btn');
+    btns.forEach(btn => btn.classList.remove('active'));
+    if (active === 'week' && chartDay) chartDay.classList.add('active');
+    if (active === 'month' && chartMonth) chartMonth.classList.add('active');
+    if (active === 'year' && chartYear) chartYear.classList.add('active');
+}
+
 // Descargar reporte
 const downloadBtn = document.getElementById('downloadReportBtn');
 if (downloadBtn) {
@@ -388,6 +646,9 @@ if (themeToggle) {
         const isDark = document.body.classList.contains('dark-mode');
         localStorage.setItem('kiosco_admin_theme', isDark ? 'dark' : 'light');
         showToast(isDark ? '🌙 Modo oscuro activado' : '☀️ Modo claro activado', 'info');
+        // Recargar gráficas para que se vean bien con el tema
+        updateRevenueChart('week');
+        updateTopProductsChart();
     });
 }
 
@@ -402,5 +663,13 @@ window.addEventListener('ordersUpdated', () => {
     if (dashboardDiv && dashboardDiv.style.display === 'block') {
         renderOrders(currentFilter);
         updateStats();
+        updateRevenueChart('week');
+        updateTopProductsChart();
+    }
+});
+
+window.addEventListener('imagesUpdated', () => {
+    if (dashboardDiv && dashboardDiv.style.display === 'block') {
+        loadAdminData();
     }
 });
