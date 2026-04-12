@@ -33,91 +33,171 @@
                 <input type="password" id="adminPhone" placeholder="Número de teléfono" autocomplete="off">
             </div>
             <button id="loginAdminBtn" class="btn-login">🔐 Ingresar</button>
-            <div class="hidden-number">🔒 Número registrado en el sistema</div>
+            <div class="hidden-number">Desarrollador: Pitxgoras</div>
         </div>
 
         <div id="adminDashboard" style="display:none;">
-            <!-- Gráficas de Ventas -->
-            <div class="admin-section">
-                <h2>📈 Gráficas de Ventas</h2>
-                <div class="chart-filters">
-                    <button id="chartDay" class="filter-btn active">📅 Últimos 7 días</button>
-                    <button id="chartMonth" class="filter-btn">📆 Últimos 30 días</button>
-                    <button id="chartYear" class="filter-btn">📊 Últimos 12 meses</button>
+            <!-- Pestañas principales -->
+            <div class="main-tabs">
+                <button class="main-tab active" data-main="dashboard">📊 Dashboard</button>
+                <button class="main-tab" data-main="reports">📈 Reportes Avanzados</button>
+                <button class="main-tab" data-main="activity">📝 Actividad</button>
+                <button class="main-tab" data-main="settings">⚙️ Configuración</button>
+            </div>
+
+            <!-- Dashboard Principal -->
+            <div id="dashboardMain" class="main-content active">
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-info"><h3 id="totalProducts">0</h3><p>Productos</p></div></div>
+                    <div class="stat-card"><div class="stat-icon">🛒</div><div class="stat-info"><h3 id="totalOrders">0</h3><p>Pedidos</p></div></div>
+                    <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-info"><h3 id="totalRevenue">S/ 0</h3><p>Ingresos</p></div></div>
                 </div>
-                <div class="charts-container">
-                    <div class="chart-box">
-                        <h3>💰 Ingresos por período</h3>
-                        <canvas id="revenueChart" width="400" height="200"></canvas>
+
+                <div class="admin-section">
+                    <div class="section-tabs">
+                        <button class="tab-btn active" data-tab="products">📦 Productos</button>
+                        <button class="tab-btn" data-tab="categories">📂 Categorías</button>
                     </div>
-                    <div class="chart-box">
-                        <h3>📦 Productos más vendidos</h3>
-                        <canvas id="topProductsChart" width="400" height="200"></canvas>
+                    
+                    <div id="productsTab" class="tab-content active">
+                        <div class="form-group">
+                            <select id="categorySelect" class="form-control"></select>
+                            <input type="text" id="productName" placeholder="Nombre" class="form-control">
+                            <input type="number" id="productPrice" placeholder="Precio S/" class="form-control" step="0.5">
+                            <input type="number" id="productStock" placeholder="Stock" class="form-control" value="0">
+                            <input type="number" id="productCost" placeholder="Costo S/" class="form-control" step="0.5">
+                            <button id="addProductBtn" class="btn-success">➕ Agregar</button>
+                        </div>
+                        <div id="productsAdminList"></div>
+                    </div>
+                    
+                    <div id="categoriesTab" class="tab-content">
+                        <div class="form-group">
+                            <input type="text" id="newCategory" placeholder="Nueva categoría" class="form-control">
+                            <button id="addCategoryBtn" class="btn-success">➕ Agregar</button>
+                        </div>
+                        <div id="categoriesAdminList"></div>
+                    </div>
+                </div>
+
+                <div class="admin-section">
+                    <h2>📊 Ventas en Tiempo Real</h2>
+                    <div class="date-filters">
+                        <button id="filterDay" class="filter-btn active">📅 Hoy</button>
+                        <button id="filterWeek" class="filter-btn">📆 Semana</button>
+                        <button id="filterMonth" class="filter-btn">📈 Mes</button>
+                        <button id="downloadReportBtn" class="btn-download">📥 Descargar Excel</button>
+                        <button id="downloadPdfBtn" class="btn-download" style="background:#ef4444;">📄 Descargar PDF</button>
+                    </div>
+                    <div id="ordersList" class="orders-list"></div>
+                </div>
+            </div>
+
+            <!-- Reportes Avanzados -->
+            <div id="reportsMain" class="main-content" style="display:none;">
+                <div class="admin-section">
+                    <h2>📈 Gráficas de Ventas</h2>
+                    <div class="chart-filters">
+                        <button id="chartDay" class="filter-btn active">📅 Últimos 7 días</button>
+                        <button id="chartMonth" class="filter-btn">📆 Últimos 30 días</button>
+                        <button id="chartYear" class="filter-btn">📊 Últimos 12 meses</button>
+                    </div>
+                    <div class="charts-container">
+                        <div class="chart-box">
+                            <h3>💰 Ingresos por período</h3>
+                            <canvas id="revenueChart" width="400" height="200"></canvas>
+                        </div>
+                        <div class="chart-box">
+                            <h3>📦 Productos más rentables</h3>
+                            <canvas id="topProductsChart" width="400" height="200"></canvas>
+                        </div>
+                        <div class="chart-box">
+                            <h3>⏰ Horas pico de ventas</h3>
+                            <canvas id="peakHoursChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">🏆</div>
+                        <div class="stat-info">
+                            <h3>Clientes Frecuentes</h3>
+                            <div id="topCustomersList"></div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">💎</div>
+                        <div class="stat-info">
+                            <h3>Productos Más Rentables</h3>
+                            <div id="profitableProductsList"></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="stats-grid">
-                <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-info"><h3 id="totalProducts">0</h3><p>Productos</p></div></div>
-                <div class="stat-card"><div class="stat-icon">🛒</div><div class="stat-info"><h3 id="totalOrders">0</h3><p>Pedidos</p></div></div>
-                <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-info"><h3 id="totalRevenue">S/ 0</h3><p>Ingresos</p></div></div>
+            <!-- Registro de Actividades -->
+            <div id="activityMain" class="main-content" style="display:none;">
+                <div class="admin-section">
+                    <h2>📝 Registro de Actividades</h2>
+                    <div style="margin-bottom: 1rem;">
+                        <button id="clearActivityLog" class="btn-danger">🗑️ Limpiar registro</button>
+                    </div>
+                    <div id="activityLogList" class="activity-log-list" style="max-height: 500px; overflow-y: auto;"></div>
+                </div>
             </div>
 
-            <div class="admin-section">
-                <div class="section-tabs">
-                    <button class="tab-btn active" data-tab="products">📦 Productos</button>
-                    <button class="tab-btn" data-tab="categories">📂 Categorías</button>
-                </div>
-                
-                <div id="productsTab" class="tab-content active">
+            <!-- Configuración -->
+            <div id="settingsMain" class="main-content" style="display:none;">
+                <div class="admin-section">
+                    <h2>⚙️ Configuración del Negocio</h2>
                     <div class="form-group">
-                        <select id="categorySelect" class="form-control"></select>
-                        <input type="text" id="productName" placeholder="Nombre" class="form-control">
-                        <input type="number" id="productPrice" placeholder="Precio S/" class="form-control" step="0.5">
-                        <input type="number" id="productStock" placeholder="Stock" class="form-control" value="0">
-                        <button id="addProductBtn" class="btn-success">➕ Agregar</button>
+                        <label>Nombre del negocio</label>
+                        <input type="text" id="businessName" class="form-control" placeholder="Nombre">
                     </div>
-                    <div id="productsAdminList"></div>
-                </div>
-                
-                <div id="categoriesTab" class="tab-content">
                     <div class="form-group">
-                        <input type="text" id="newCategory" placeholder="Nueva categoría" class="form-control">
-                        <button id="addCategoryBtn" class="btn-success">➕ Agregar</button>
+                        <label>Teléfono de contacto</label>
+                        <input type="tel" id="businessPhone" class="form-control" placeholder="Teléfono">
                     </div>
-                    <div id="categoriesAdminList"></div>
+                    <div class="form-group">
+                        <label>Costo de envío (S/)</label>
+                        <input type="number" id="deliveryCostSetting" class="form-control" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Envío gratis desde (S/)</label>
+                        <input type="number" id="freeDeliveryMin" class="form-control" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Horario de atención</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="time" id="scheduleStart" class="form-control">
+                            <span>a</span>
+                            <input type="time" id="scheduleEnd" class="form-control">
+                        </div>
+                    </div>
+                    <button id="saveSettingsBtn" class="btn-success">💾 Guardar configuración</button>
                 </div>
-            </div>
-
-            <div class="admin-section">
-                <h2>📊 Ventas en Tiempo Real</h2>
-                <div class="date-filters">
-                    <button id="filterDay" class="filter-btn active">📅 Hoy</button>
-                    <button id="filterWeek" class="filter-btn">📆 Semana</button>
-                    <button id="filterMonth" class="filter-btn">📈 Mes</button>
-                    <button id="downloadReportBtn" class="btn-download">📥 Descargar Excel</button>
-                </div>
-                <div id="ordersList" class="orders-list"></div>
             </div>
         </div>
     </main>
 
+    <!-- Modal de imágenes -->
     <div id="imageModal" class="modal">
         <div class="modal-content" style="max-width: 500px;">
-            <h3>🖼️ Seleccionar imagen</h3>
-            <div style="margin: 1rem 0;">
-                <input type="file" id="imageUpload" accept="image/*" style="margin-bottom: 1rem;">
-                <div id="imagePreview" style="width: 150px; height: 150px; margin: 0 auto; border: 2px dashed #ddd; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                    <span style="color: #999;">Vista previa</span>
-                </div>
+            <h3>🖼️ Galería de imágenes</h3>
+            <div id="imageGalleryContainer" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0;"></div>
+            <div id="imagePreview" style="width: 150px; height: 150px; margin: 0 auto; border: 2px dashed #ddd; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                <span style="color: #999;">Vista previa</span>
             </div>
+            <input type="file" id="imageUpload" accept="image/*" style="margin: 1rem 0; width: 100%;">
             <div class="modal-buttons">
-                <button id="saveImageBtn" class="btn-success">Guardar imagen</button>
-                <button id="cancelImageBtn" class="btn-danger">Cancelar</button>
+                <button id="saveImageBtn" class="btn-success">➕ Agregar imagen</button>
+                <button id="cancelImageBtn" class="btn-danger">Cerrar</button>
             </div>
         </div>
     </div>
 
+    <!-- Modal de confirmación -->
     <div id="confirmModal" class="modal">
         <div class="modal-content">
             <p id="confirmMessage"></p>

@@ -4,7 +4,54 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Kiosco - Tu Tienda</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="assets/icons/icon-192x192.png">
+    <meta name="theme-color" content="#6366f1">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1"></script>
+    <style>
+        /* Estilos adicionales para el modal de datos del cliente */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: var(--white);
+            border-radius: 16px;
+            max-width: 400px;
+            width: 90%;
+            animation: fadeInUp 0.3s ease;
+        }
+        body.dark-mode .modal-content {
+            background: #1e293b;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .cart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .close-form {
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -20,12 +67,28 @@
                 <div class="toggle-switch"></div>
                 <span>🌙</span>
             </div>
+            <a href="client-orders.html" class="btn-history" style="background: #3b82f6; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 50px; cursor: pointer; text-decoration: none;">📜 Mis Pedidos</a>
             <button id="adminAccessBtn" class="btn-admin">👑 Admin</button>
         </div>
     </header>
 
     <div class="welcome-banner">
         <p>✨ ¡Bienvenido! Explora nuestros productos y haz tu pedido ✨</p>
+    </div>
+
+    <div class="search-advanced" style="margin: 0 1.5rem 1rem 1.5rem;">
+        <div class="search-filters" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <input type="text" id="searchProducts" placeholder="🔍 Buscar productos..." style="flex:2; padding: 0.8rem; border-radius: 50px; border: 1px solid #ddd;">
+            <select id="sortBy" style="padding: 0.8rem; border-radius: 50px; border: 1px solid #ddd;">
+                <option value="default">Ordenar por</option>
+                <option value="price_asc">Precio: menor a mayor</option>
+                <option value="price_desc">Precio: mayor a menor</option>
+                <option value="name_asc">Nombre: A-Z</option>
+                <option value="name_desc">Nombre: Z-A</option>
+            </select>
+            <input type="number" id="minPrice" placeholder="Mín S/" style="width: 100px; padding: 0.8rem; border-radius: 50px; border: 1px solid #ddd;">
+            <input type="number" id="maxPrice" placeholder="Máx S/" style="width: 100px; padding: 0.8rem; border-radius: 50px; border: 1px solid #ddd;">
+        </div>
     </div>
 
     <main>
@@ -37,19 +100,44 @@
         <section id="productsSection">
             <div class="section-header">
                 <h2 id="currentCategoryTitle">Productos</h2>
-                <div class="search-box">
-                    <input type="text" id="searchProducts" placeholder="Buscar productos...">
-                </div>
             </div>
-            <div id="productsGrid" class="products-grid"></div>
+            <div id="productsGrid" class="products-grid">
+                <div class="skeleton-card" style="height: 280px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: loading 1.5s infinite; border-radius: 16px;"></div>
+                <div class="skeleton-card" style="height: 280px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: loading 1.5s infinite; border-radius: 16px;"></div>
+                <div class="skeleton-card" style="height: 280px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: loading 1.5s infinite; border-radius: 16px;"></div>
+            </div>
         </section>
     </main>
 
+    <!-- Modal de dirección de envío -->
+    <div id="deliveryModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="cart-header">
+                <h3>🚚 Dirección de envío</h3>
+                <span class="close-delivery" style="font-size:1.5rem; cursor:pointer;">&times;</span>
+            </div>
+            <div style="padding: 1rem;">
+                <input type="text" id="deliveryAddress" placeholder="Tu dirección completa" style="width: 100%; padding: 0.8rem; margin-bottom: 1rem; border-radius: 12px; border: 1px solid #ddd;">
+                <div id="map" style="height: 250px; border-radius: 12px; margin-bottom: 1rem;"></div>
+                <div class="delivery-options" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button id="deliverNowBtn" class="btn-primary" style="background: #10b981; flex:1;">🚗 Traer ahora</button>
+                    <button id="scheduleLaterBtn" class="btn-primary" style="background: #f59e0b; flex:1;">📅 Programar</button>
+                </div>
+                <div id="schedulePicker" style="display: none; margin-top: 1rem;">
+                    <input type="datetime-local" id="scheduleDate" style="width: 100%; padding: 0.8rem; border-radius: 12px; margin-bottom: 0.5rem;">
+                    <button id="confirmScheduleBtn" class="btn-primary" style="background: #10b981; width:100%;">Confirmar programación</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botón flotante carrito -->
     <button id="cartFab" class="cart-fab">
         🛒
         <span id="cartBadge" class="badge">0</span>
     </button>
 
+    <!-- Modal del carrito -->
     <div id="cartModal" class="cart-modal">
         <div class="cart-modal-content">
             <div class="cart-header">
@@ -58,15 +146,45 @@
             </div>
             <div id="cartItemsList" class="cart-items-list"></div>
             <div class="cart-total">
+                <strong>Subtotal: S/ <span id="cartSubtotal">0.00</span></strong><br>
+                <small>Envío: S/ <span id="deliveryCost">0.00</span></small><br>
                 <strong>Total: S/ <span id="cartTotal">0.00</span></strong>
             </div>
-            <button id="checkoutBtn" class="btn-primary">📱 Enviar por WhatsApp</button>
+            <button id="checkoutBtn" class="btn-primary">📱 Continuar</button>
         </div>
     </div>
 
+    <!-- Toast de notificaciones -->
     <div id="toastNotification" class="toast"></div>
+
+    <!-- Botón flotante WhatsApp -->
+    <a href="https://wa.me/51914491874" target="_blank" class="whatsapp-float" style="position:fixed; bottom:30px; left:30px; background:#25D366; color:white; width:55px; height:55px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:28px; text-decoration:none; box-shadow:0 4px 12px rgba(0,0,0,0.2); z-index:200; transition:all 0.3s;">
+        💬
+    </a>
 
     <script src="js/database.js"></script>
     <script src="js/client.js"></script>
+    <script>
+        // Registrar Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registrado:', reg))
+                    .catch(err => console.log('Error al registrar SW:', err));
+            });
+        }
+        
+        // Solicitar permisos de notificación
+        if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+            setTimeout(() => {
+                Notification.requestPermission();
+            }, 5000);
+        }
+        
+        // Cerrar modal de delivery
+        document.querySelector('.close-delivery')?.addEventListener('click', () => {
+            document.getElementById('deliveryModal').style.display = 'none';
+        });
+    </script>
 </body>
 </html>
