@@ -19,7 +19,31 @@ const ordersList = document.getElementById('ordersList');
 const logoutBtn = document.getElementById('logoutAdmin');
 const themeToggle = document.getElementById('themeToggle');
 
-// Elementos para reportes avanzados
+// Elementos para personalización
+const primaryColorInput = document.getElementById('primaryColor');
+const secondaryColorInput = document.getElementById('secondaryColor');
+const dangerColorInput = document.getElementById('dangerColor');
+const warningColorInput = document.getElementById('warningColor');
+const logoUpload = document.getElementById('logoUpload');
+const uploadLogoBtn = document.getElementById('uploadLogoBtn');
+const removeLogoBtn = document.getElementById('removeLogoBtn');
+const logoPreview = document.getElementById('logoPreview');
+const saveThemeBtn = document.getElementById('saveThemeBtn');
+
+// Elementos para configuración
+const businessNameInput = document.getElementById('businessName');
+const businessPhoneInput = document.getElementById('businessPhone');
+const businessRUCInput = document.getElementById('businessRUC');
+const businessAddressInput = document.getElementById('businessAddress');
+const deliveryCostInput = document.getElementById('deliveryCostSetting');
+const freeDeliveryMinInput = document.getElementById('freeDeliveryMin');
+const paymentMethodsList = document.getElementById('paymentMethodsList');
+const deliveryWindowsList = document.getElementById('deliveryWindowsList');
+const addPaymentMethodBtn = document.getElementById('addPaymentMethodBtn');
+const addDeliveryWindowBtn = document.getElementById('addDeliveryWindowBtn');
+const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+
+// Elementos para reportes
 const activityLogList = document.getElementById('activityLogList');
 const topCustomersList = document.getElementById('topCustomersList');
 const profitableProductsList = document.getElementById('profitableProductsList');
@@ -69,6 +93,97 @@ function showToast(message, type) {
     toast.style.background = type === 'error' ? '#ef4444' : '#10b981';
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
+}
+
+// ============ PERSONALIZACIÓN DE TEMA ============
+function loadThemeSettings() {
+    const theme = getTheme();
+    if (primaryColorInput) primaryColorInput.value = theme.primaryColor;
+    if (secondaryColorInput) secondaryColorInput.value = theme.secondaryColor;
+    if (dangerColorInput) dangerColorInput.value = theme.dangerColor;
+    if (warningColorInput) warningColorInput.value = theme.warningColor;
+    
+    updateColorPreviews();
+    applyThemeToPage(theme);
+}
+
+function updateColorPreviews() {
+    const primaryPreview = document.getElementById('primaryPreview');
+    const secondaryPreview = document.getElementById('secondaryPreview');
+    const dangerPreview = document.getElementById('dangerPreview');
+    const warningPreview = document.getElementById('warningPreview');
+    
+    if (primaryPreview) primaryPreview.style.backgroundColor = primaryColorInput?.value;
+    if (secondaryPreview) secondaryPreview.style.backgroundColor = secondaryColorInput?.value;
+    if (dangerPreview) dangerPreview.style.backgroundColor = dangerColorInput?.value;
+    if (warningPreview) warningPreview.style.backgroundColor = warningColorInput?.value;
+}
+
+function loadLogoPreview() {
+    const logo = getLogo();
+    if (logoPreview) {
+        logoPreview.innerHTML = '';
+        if (logo) {
+            const img = document.createElement('img');
+            img.src = logo;
+            img.style.maxWidth = '150px';
+            img.style.maxHeight = '80px';
+            img.style.marginTop = '10px';
+            logoPreview.appendChild(img);
+            
+            // Actualizar logo en el header
+            const headerLogo = document.getElementById('headerLogo');
+            if (headerLogo) {
+                headerLogo.src = logo;
+                headerLogo.style.display = 'block';
+            }
+        } else {
+            const headerLogo = document.getElementById('headerLogo');
+            if (headerLogo) headerLogo.style.display = 'none';
+        }
+    }
+}
+
+if (uploadLogoBtn) {
+    uploadLogoBtn.onclick = () => {
+        const file = logoUpload?.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                saveLogo(e.target.result);
+                loadLogoPreview();
+                showToast('✅ Logo actualizado', 'success');
+                addActivityLog('Logo actualizado', 'Se subió un nuevo logo', 'general');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            showToast('Selecciona una imagen primero', 'error');
+        }
+    };
+}
+
+if (removeLogoBtn) {
+    removeLogoBtn.onclick = () => {
+        deleteLogo();
+        loadLogoPreview();
+        showToast('✅ Logo eliminado', 'success');
+        addActivityLog('Logo eliminado', 'Se eliminó el logo del negocio', 'general');
+    };
+}
+
+if (saveThemeBtn) {
+    saveThemeBtn.onclick = () => {
+        const theme = {
+            primaryColor: primaryColorInput?.value || '#6366f1',
+            secondaryColor: secondaryColorInput?.value || '#10b981',
+            dangerColor: dangerColorInput?.value || '#ef4444',
+            warningColor: warningColorInput?.value || '#f59e0b',
+            darkColor: '#1e293b'
+        };
+        saveTheme(theme);
+        showToast('✅ Tema guardado', 'success');
+        addActivityLog('Tema actualizado', 'Se cambiaron los colores de la tienda', 'general');
+    };
 }
 
 // ============ NOTIFICAR LLEGADA AL CLIENTE ============
@@ -133,12 +248,12 @@ function updateRevenueChart(period) {
             datasets: [{
                 label: 'Ingresos (S/)',
                 data: data,
-                borderColor: '#6366f1',
+                borderColor: getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#6366f1',
                 backgroundColor: 'rgba(99, 102, 241, 0.1)',
                 borderWidth: 2,
                 fill: true,
                 tension: 0.4,
-                pointBackgroundColor: '#6366f1',
+                pointBackgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#6366f1',
                 pointBorderColor: '#fff',
                 pointRadius: 4,
                 pointHoverRadius: 6
@@ -356,6 +471,94 @@ if (cancelImageBtn) {
     };
 }
 
+// ============ CONFIGURACIÓN DE MÉTODOS DE PAGO Y VENTANAS ============
+function loadPaymentMethods() {
+    const settings = getSettings();
+    const methods = settings.paymentMethods || ['yape', 'plin', 'transferencia', 'efectivo'];
+    const methodNames = { 'yape': 'Yape', 'plin': 'Plin', 'transferencia': 'Transferencia', 'efectivo': 'Efectivo' };
+    
+    if (paymentMethodsList) {
+        paymentMethodsList.innerHTML = '';
+        methods.forEach((method, index) => {
+            const div = document.createElement('div');
+            div.className = 'payment-method-item';
+            div.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid #e2e8f0;';
+            div.innerHTML = `
+                <span>${methodNames[method] || method}</span>
+                <button class="delete-payment-method" data-method="${method}" style="background: #ef4444; color: white; border: none; padding: 0.2rem 0.6rem; border-radius: 8px; cursor: pointer;">Eliminar</button>
+            `;
+            paymentMethodsList.appendChild(div);
+        });
+        
+        document.querySelectorAll('.delete-payment-method').forEach(btn => {
+            btn.onclick = () => {
+                const method = btn.dataset.method;
+                let settings = getSettings();
+                settings.paymentMethods = settings.paymentMethods.filter(m => m !== method);
+                saveSettings(settings);
+                loadPaymentMethods();
+                showToast('✅ Método eliminado', 'success');
+            };
+        });
+    }
+}
+
+function loadDeliveryWindows() {
+    const windows = getDeliveryWindows();
+    if (deliveryWindowsList) {
+        deliveryWindowsList.innerHTML = '';
+        windows.forEach((window, index) => {
+            const div = document.createElement('div');
+            div.className = 'delivery-window-item';
+            div.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid #e2e8f0;';
+            div.innerHTML = `
+                <span>⏰ ${window}</span>
+                <button class="delete-window" data-window="${window}" style="background: #ef4444; color: white; border: none; padding: 0.2rem 0.6rem; border-radius: 8px; cursor: pointer;">Eliminar</button>
+            `;
+            deliveryWindowsList.appendChild(div);
+        });
+        
+        document.querySelectorAll('.delete-window').forEach(btn => {
+            btn.onclick = () => {
+                const windowVal = btn.dataset.window;
+                let settings = getSettings();
+                settings.deliveryWindows = settings.deliveryWindows.filter(w => w !== windowVal);
+                saveSettings(settings);
+                loadDeliveryWindows();
+                showToast('✅ Ventana eliminada', 'success');
+            };
+        });
+    }
+}
+
+if (addPaymentMethodBtn) {
+    addPaymentMethodBtn.onclick = () => {
+        const newMethod = prompt('Ingrese el nombre del nuevo método de pago:', '');
+        if (newMethod) {
+            let settings = getSettings();
+            if (!settings.paymentMethods) settings.paymentMethods = [];
+            settings.paymentMethods.push(newMethod.toLowerCase().replace(/\s/g, '_'));
+            saveSettings(settings);
+            loadPaymentMethods();
+            showToast('✅ Método agregado', 'success');
+        }
+    };
+}
+
+if (addDeliveryWindowBtn) {
+    addDeliveryWindowBtn.onclick = () => {
+        const newWindow = prompt('Ingrese la ventana de entrega (ej: 10:00-12:00):', '');
+        if (newWindow) {
+            let settings = getSettings();
+            if (!settings.deliveryWindows) settings.deliveryWindows = [];
+            settings.deliveryWindows.push(newWindow);
+            saveSettings(settings);
+            loadDeliveryWindows();
+            showToast('✅ Ventana agregada', 'success');
+        }
+    };
+}
+
 // ============ LOGIN ============
 if (loginBtn) {
     loginBtn.onclick = () => {
@@ -368,6 +571,10 @@ if (loginBtn) {
             loadActivityLog();
             loadTopCustomers();
             loadProfitableProducts();
+            loadThemeSettings();
+            loadLogoPreview();
+            loadPaymentMethods();
+            loadDeliveryWindows();
             showToast('✅ Bienvenido Administrador', 'success');
             addActivityLog('Inicio de sesión', 'Administrador ingresó al panel', 'auth');
         } else {
@@ -743,9 +950,12 @@ function renderOrders(filter) {
             <div style="margin: 0.5rem 0;">
                 <strong>👤 Cliente:</strong> ${order.customerName || 'Cliente'} (${order.customerPhone || 'Sin teléfono'})<br>
                 <strong>💰 Total: S/ ${(order.total || 0).toFixed(2)}</strong>
-                ${order.deliveryAddress ? `<br><strong>📍 Dirección:</strong> ${order.deliveryAddress}` : ''}
-                ${order.scheduledDate ? `<br><strong>📆 Programado para:</strong> ${new Date(order.scheduledDate).toLocaleString()}` : ''}
-                ${order.estimatedTime ? `<br><strong>⏱️ Tiempo estimado:</strong> ${order.estimatedTime} min` : ''}
+                <strong>💳 Pago:</strong> ${order.paymentMethod || 'No especificado'}<br>
+                ${order.deliveryAddress ? `<strong>📍 Dirección:</strong> ${order.deliveryAddress}<br>` : ''}
+                ${order.deliveryWindow ? `<strong>⏰ Ventana de entrega:</strong> ${order.deliveryWindow}<br>` : ''}
+                ${order.deliveryDate ? `<strong>📅 Fecha de entrega:</strong> ${new Date(order.deliveryDate).toLocaleDateString()}<br>` : ''}
+                ${order.scheduledDate ? `<strong>📆 Programado para:</strong> ${new Date(order.scheduledDate).toLocaleString()}<br>` : ''}
+                ${order.estimatedTime ? `<strong>⏱️ Tiempo estimado:</strong> ${order.estimatedTime} min` : ''}
                 <select class="order-status-select" data-id="${order.id}" style="margin-left: 0.5rem; padding: 0.3rem; border-radius: 8px;">
                     <option value="pendiente" ${order.status === 'pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
                     <option value="confirmado" ${order.status === 'confirmado' ? 'selected' : ''}>✅ Confirmado</option>
@@ -852,17 +1062,25 @@ function downloadExcel() {
             <h2>📊 REPORTE DE VENTAS - KIOSCO</h2>
             <p><strong>Fecha:</strong> ${new Date().toLocaleString('es-PE')}</p>
             <p><strong>Período:</strong> ${currentFilter === 'day' ? 'Hoy' : currentFilter === 'week' ? 'Esta Semana' : 'Este Mes'}</p>
-            <table border="1"><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Total</th><th>Estado</th></tr></thead><tbody>
+            <table border="1"><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Pago</th><th>Productos</th><th>Total</th><th>Estado</th></tr></thead><tbody>
     `;
     
     currentOrders.forEach((order, index) => {
         const productos = order.items.map(i => `${i.name} x${i.quantity}`).join('\n');
-        tableHtml += `<tr><td>${index+1}</td><td>${new Date(order.date).toLocaleString('es-PE')}</td><td>${order.customerName || 'Cliente'}</td><td>${productos}</td><td>S/ ${(order.total || 0).toFixed(2)}</td><td>${order.status}</td></tr>`;
+        tableHtml += `<tr>
+            <td>${index+1}</td>
+            <td>${new Date(order.date).toLocaleString('es-PE')}</td>
+            <td>${order.customerName || 'Cliente'} (${order.customerPhone || ''})</div></td>
+            <td>${order.paymentMethod || '-'}</td>
+            <td>${productos}</td>
+            <td>S/ ${(order.total || 0).toFixed(2)}</div></td>
+            <td>${order.status}</td>
+        </tr>`;
     });
     
     const totalIngresos = currentOrders.reduce((s, o) => s + (o.total || 0), 0);
-    tableHtml += `<tr style="background:#f0f9ff;"><td colspan="4"><strong>TOTAL</strong></td><td><strong>S/ ${totalIngresos.toFixed(2)}</strong></td><td>${currentOrders.length} pedidos</td></tr>`;
-    tableHtml += `</tbody></table><hr><small>Reporte generado por Kiosco Admin</small></body></html>`;
+    tableHtml += `<tr style="background:#f0f9ff;"><td colspan="5"><strong>TOTAL</strong></td><td><strong>S/ ${totalIngresos.toFixed(2)}</strong></td><td>${currentOrders.length} pedidos</td></tr>`;
+    tableHtml += `</tbody><table><hr><small>Reporte generado por Kiosco Admin</small></body></html>`;
     
     const blob = new Blob([tableHtml], { type: 'application/vnd.ms-excel' });
     const link = document.createElement('a');
@@ -882,16 +1100,24 @@ function downloadPDF() {
         </head><body><h1>📊 REPORTE DE VENTAS - KIOSCO</h1>
         <p><strong>Fecha:</strong> ${new Date().toLocaleString('es-PE')}</p>
         <p><strong>Período:</strong> ${currentFilter === 'day' ? 'Hoy' : currentFilter === 'week' ? 'Esta Semana' : 'Este Mes'}</p>
-        <table border="1"><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Total</th><th>Estado</th></tr></thead><tbody>`;
+        <table border="1"><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Pago</th><th>Productos</th><th>Total</th><th>Estado</th></tr></thead><tbody>`;
     
     currentOrders.forEach((order, index) => {
         const productos = order.items.map(i => `${i.name} x${i.quantity}`).join('<br>');
-        html += `<tr><td>${index+1}</td><td>${new Date(order.date).toLocaleString('es-PE')}</td><td>${order.customerName || 'Cliente'}</td><td>${productos}</td><td>S/ ${(order.total || 0).toFixed(2)}</td><td>${order.status}</td></tr>`;
+        html += `<tr>
+            <td>${index+1}</td>
+            <td>${new Date(order.date).toLocaleString('es-PE')}</td>
+            <td>${order.customerName || 'Cliente'}<br>${order.customerPhone || ''}</div></td>
+            <td>${order.paymentMethod || '-'}</td>
+            <td>${productos}</td>
+            <td>S/ ${(order.total || 0).toFixed(2)}</div></td>
+            <td>${order.status}</td>
+        </tr>`;
     });
     
     const totalIngresos = currentOrders.reduce((s, o) => s + (o.total || 0), 0);
-    html += `<tr><td colspan="4"><strong>TOTAL</strong></td><td><strong>S/ ${totalIngresos.toFixed(2)}</strong></td><td>${currentOrders.length} pedidos</td></tr>`;
-    html += `</tbody></table><div class="footer"><p>Reporte generado por Kiosco Admin</p></div></body></html>`;
+    html += `<tr style="background:#f0f9ff;"><td colspan="5"><strong>TOTAL</strong></td><td><strong>S/ ${totalIngresos.toFixed(2)}</strong></td><td>${currentOrders.length} pedidos</td></tr>`;
+    html += `</tbody><table><div class="footer"><p>Reporte generado por Kiosco Admin</p></div></body></html>`;
     
     printWindow.document.write(html);
     printWindow.document.close();
@@ -920,45 +1146,42 @@ document.querySelectorAll('.main-tab').forEach(btn => {
             loadProfitableProducts();
         }
         if (btn.dataset.main === 'activity') loadActivityLog();
-        if (btn.dataset.main === 'settings') loadSettings();
+        if (btn.dataset.main === 'settings') {
+            loadSettings();
+            loadPaymentMethods();
+            loadDeliveryWindows();
+        }
+        if (btn.dataset.main === 'customize') {
+            loadThemeSettings();
+            loadLogoPreview();
+        }
     };
 });
 
 // ============ CONFIGURACIÓN ============
 function loadSettings() {
     const settings = getSettings();
-    const businessNameInput = document.getElementById('businessName');
-    const businessPhoneInput = document.getElementById('businessPhone');
-    const deliveryCostInput = document.getElementById('deliveryCostSetting');
-    const freeDeliveryMinInput = document.getElementById('freeDeliveryMin');
-    const scheduleStartInput = document.getElementById('scheduleStart');
-    const scheduleEndInput = document.getElementById('scheduleEnd');
-    
     if (businessNameInput) businessNameInput.value = settings.businessName || 'Kiosco';
     if (businessPhoneInput) businessPhoneInput.value = settings.businessPhone || '+51914491874';
+    if (businessRUCInput) businessRUCInput.value = settings.businessRUC || '';
+    if (businessAddressInput) businessAddressInput.value = settings.businessAddress || '';
     if (deliveryCostInput) deliveryCostInput.value = settings.deliveryCost || 3;
     if (freeDeliveryMinInput) freeDeliveryMinInput.value = settings.freeDeliveryMin || 20;
-    if (scheduleStartInput) scheduleStartInput.value = settings.scheduleStart || '08:00';
-    if (scheduleEndInput) scheduleEndInput.value = settings.scheduleEnd || '22:00';
 }
 
-const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 if (saveSettingsBtn) {
     saveSettingsBtn.onclick = () => {
-        const businessNameInput = document.getElementById('businessName');
-        const businessPhoneInput = document.getElementById('businessPhone');
-        const deliveryCostInput = document.getElementById('deliveryCostSetting');
-        const freeDeliveryMinInput = document.getElementById('freeDeliveryMin');
-        const scheduleStartInput = document.getElementById('scheduleStart');
-        const scheduleEndInput = document.getElementById('scheduleEnd');
-        
         const settings = {
             businessName: businessNameInput?.value || 'Kiosco',
             businessPhone: businessPhoneInput?.value || '+51914491874',
+            businessRUC: businessRUCInput?.value || '',
+            businessAddress: businessAddressInput?.value || '',
             deliveryCost: parseFloat(deliveryCostInput?.value || 3),
             freeDeliveryMin: parseFloat(freeDeliveryMinInput?.value || 20),
-            scheduleStart: scheduleStartInput?.value || '08:00',
-            scheduleEnd: scheduleEndInput?.value || '22:00'
+            paymentMethods: getSettings().paymentMethods || ['yape', 'plin', 'transferencia', 'efectivo'],
+            deliveryWindows: getSettings().deliveryWindows || ['10:00-12:00', '12:00-14:00', '14:00-16:00', '16:00-18:00', '18:00-20:00'],
+            scheduleStart: getSettings().scheduleStart || '08:00',
+            scheduleEnd: getSettings().scheduleEnd || '22:00'
         };
         saveSettings(settings);
         showToast('✅ Configuración guardada', 'success');
@@ -1037,4 +1260,8 @@ window.addEventListener('ordersUpdated', () => {
 
 window.addEventListener('imagesUpdated', () => {
     if (dashboardDiv && dashboardDiv.style.display === 'block') loadAdminData();
+});
+
+window.addEventListener('themeUpdated', () => {
+    loadThemeSettings();
 });
