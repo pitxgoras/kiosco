@@ -4,6 +4,9 @@ let topProductsChart = null;
 let peakHoursChart = null;
 let currentOrders = [];
 let currentFilter = 'day';
+let currentSalesFilter = 'day';
+let locationMap = null;
+let locationMarker = null;
 
 // DOM Elements
 const loginDiv = document.getElementById('adminLogin');
@@ -29,32 +32,57 @@ const uploadLogoBtn = document.getElementById('uploadLogoBtn');
 const removeLogoBtn = document.getElementById('removeLogoBtn');
 const logoPreview = document.getElementById('logoPreview');
 const saveThemeBtn = document.getElementById('saveThemeBtn');
+const businessNameDisplay = document.getElementById('businessNameDisplay');
+const updateBusinessNameBtn = document.getElementById('updateBusinessNameBtn');
 
 // Elementos para configuración
-const businessNameInput = document.getElementById('businessName');
-const businessPhoneInput = document.getElementById('businessPhone');
 const businessRUCInput = document.getElementById('businessRUC');
 const businessAddressInput = document.getElementById('businessAddress');
 const deliveryCostInput = document.getElementById('deliveryCostSetting');
 const freeDeliveryMinInput = document.getElementById('freeDeliveryMin');
 const paymentMethodsList = document.getElementById('paymentMethodsList');
-const deliveryWindowsList = document.getElementById('deliveryWindowsList');
-const addPaymentMethodBtn = document.getElementById('addPaymentMethodBtn');
-const addDeliveryWindowBtn = document.getElementById('addDeliveryWindowBtn');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+
+// Elementos para métodos de pago
+const newPaymentMethodInput = document.getElementById('newPaymentMethod');
+const addPaymentMethodBtn = document.getElementById('addPaymentMethodBtn');
+
+// Elementos para ubicación
+const getCurrentLocationBtn = document.getElementById('getCurrentLocationBtn');
+const locationInfo = document.getElementById('locationInfo');
+const locationCoords = document.getElementById('locationCoords');
+
+// Elementos para ventas
+const salesFilter = document.getElementById('salesFilter');
+const applySalesFilter = document.getElementById('applySalesFilter');
+const exportSalesBtn = document.getElementById('exportSalesBtn');
+const exportSalesPdfBtn = document.getElementById('exportSalesPdfBtn');
+const salesTotal = document.getElementById('salesTotal');
+const salesCount = document.getElementById('salesCount');
+const salesAverage = document.getElementById('salesAverage');
+const salesTableBody = document.getElementById('salesTableBody');
 
 // Elementos para reportes
 const activityLogList = document.getElementById('activityLogList');
 const topCustomersList = document.getElementById('topCustomersList');
 const profitableProductsList = document.getElementById('profitableProductsList');
 
-// Modal de imagen
+// Modal de imagen de producto
 const imageModal = document.getElementById('imageModal');
 const imageUpload = document.getElementById('imageUpload');
 const imagePreview = document.getElementById('imagePreview');
 const saveImageBtn = document.getElementById('saveImageBtn');
 const cancelImageBtn = document.getElementById('cancelImageBtn');
 let currentProductForImage = null;
+
+// Modal de imagen de método de pago
+const paymentImageModal = document.getElementById('paymentImageModal');
+const paymentImageUpload = document.getElementById('paymentImageUpload');
+const paymentImagePreview = document.getElementById('paymentImagePreview');
+const savePaymentImageBtn = document.getElementById('savePaymentImageBtn');
+const removePaymentImageBtn = document.getElementById('removePaymentImageBtn');
+const cancelPaymentImageBtn = document.getElementById('cancelPaymentImageBtn');
+let currentPaymentMethodForImage = null;
 
 // Modal de confirmación
 const confirmModal = document.getElementById('confirmModal');
@@ -121,6 +149,9 @@ function updateColorPreviews() {
 
 function loadLogoPreview() {
     const logo = getLogo();
+    const headerLogo = document.getElementById('headerLogo');
+    const headerTitle = document.getElementById('headerTitle');
+    
     if (logoPreview) {
         logoPreview.innerHTML = '';
         if (logo) {
@@ -131,17 +162,28 @@ function loadLogoPreview() {
             img.style.marginTop = '10px';
             logoPreview.appendChild(img);
             
-            // Actualizar logo en el header
-            const headerLogo = document.getElementById('headerLogo');
             if (headerLogo) {
                 headerLogo.src = logo;
                 headerLogo.style.display = 'block';
             }
+            if (headerTitle) headerTitle.style.display = 'none';
         } else {
-            const headerLogo = document.getElementById('headerLogo');
             if (headerLogo) headerLogo.style.display = 'none';
+            if (headerTitle) headerTitle.style.display = 'block';
         }
     }
+}
+
+function loadBusinessName() {
+    const settings = getSettings();
+    const businessName = settings.businessName || 'Kiosco';
+    const headerTitle = document.getElementById('headerTitle');
+    const storeNameInput = document.getElementById('businessNameDisplay');
+    
+    if (headerTitle && !getLogo()) {
+        headerTitle.innerHTML = `🛒 ${businessName}`;
+    }
+    if (storeNameInput) storeNameInput.value = businessName;
 }
 
 if (uploadLogoBtn) {
@@ -166,8 +208,23 @@ if (removeLogoBtn) {
     removeLogoBtn.onclick = () => {
         deleteLogo();
         loadLogoPreview();
+        loadBusinessName();
         showToast('✅ Logo eliminado', 'success');
         addActivityLog('Logo eliminado', 'Se eliminó el logo del negocio', 'general');
+    };
+}
+
+if (updateBusinessNameBtn) {
+    updateBusinessNameBtn.onclick = () => {
+        const newName = businessNameDisplay?.value.trim();
+        if (newName) {
+            const settings = getSettings();
+            settings.businessName = newName;
+            saveSettings(settings);
+            loadBusinessName();
+            showToast('✅ Nombre actualizado', 'success');
+            addActivityLog('Nombre actualizado', `Nombre del negocio cambiado a "${newName}"`, 'general');
+        }
     };
 }
 
@@ -183,6 +240,124 @@ if (saveThemeBtn) {
         saveTheme(theme);
         showToast('✅ Tema guardado', 'success');
         addActivityLog('Tema actualizado', 'Se cambiaron los colores de la tienda', 'general');
+    };
+}
+
+// ============ UBICACIÓN EN TIEMPO REAL ============
+function initMiniMap() {
+    if (typeof L === 'undefined') return;
+    if (locationMap) locationMap.remove();
+    
+    const mapContainer = document.getElementById('miniMap');
+    if (!mapContainer) return;
+    
+    locationMap = L.map('miniMap').setView([-12.0464, -77.0428], 15);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+    }).addTo(locationMap);
+}
+
+function updateLocationOnMap(lat, lng, address) {
+    if (typeof L === 'undefined') return;
+    if (locationMap) {
+        locationMap.setView([lat, lng], 16);
+        if (locationMarker) locationMarker.remove();
+        locationMarker = L.marker([lat, lng]).addTo(locationMap);
+        locationMarker.bindPopup(`📍 ${address}`).openPopup();
+    }
+}
+
+function getCurrentLocation() {
+    if (!navigator.geolocation) {
+        showToast('❌ Tu navegador no soporta geolocalización', 'error');
+        return;
+    }
+    
+    showToast('📍 Obteniendo tu ubicación...', 'info');
+    
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        
+        try {
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=es`);
+            const data = await response.json();
+            const address = data.display_name || `${lat}, ${lng}`;
+            
+            if (businessAddressInput) {
+                businessAddressInput.value = address;
+            }
+            
+            if (locationCoords) {
+                locationCoords.innerHTML = `<strong>📍 Ubicación obtenida:</strong><br>${address}<br><small>Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}</small>`;
+            }
+            
+            if (locationInfo) {
+                locationInfo.style.display = 'block';
+            }
+            
+            initMiniMap();
+            setTimeout(() => updateLocationOnMap(lat, lng, address), 100);
+            
+            showToast('✅ Ubicación actualizada', 'success');
+            addActivityLog('Ubicación actualizada', `Se actualizó la dirección del negocio a: ${address.substring(0, 100)}`, 'general');
+        } catch (error) {
+            console.error('Error al obtener dirección:', error);
+            if (businessAddressInput) {
+                businessAddressInput.value = `${lat}, ${lng}`;
+            }
+            if (locationCoords) {
+                locationCoords.innerHTML = `<strong>📍 Coordenadas:</strong><br>Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
+            }
+            if (locationInfo) {
+                locationInfo.style.display = 'block';
+            }
+            initMiniMap();
+            setTimeout(() => updateLocationOnMap(lat, lng, `${lat}, ${lng}`), 100);
+            showToast('✅ Coordenadas actualizadas', 'success');
+        }
+    }, (error) => {
+        console.error('Error de geolocalización:', error);
+        showToast('❌ No se pudo obtener tu ubicación. Verifica los permisos.', 'error');
+    });
+}
+
+if (getCurrentLocationBtn) {
+    getCurrentLocationBtn.onclick = getCurrentLocation;
+}
+
+// Elemento para restablecer colores
+const resetColorsBtn = document.getElementById('resetColorsBtn');
+
+// Colores predeterminados
+const DEFAULT_COLORS = {
+    primaryColor: '#6366f1',
+    secondaryColor: '#10b981',
+    dangerColor: '#ef4444',
+    warningColor: '#f59e0b',
+    darkColor: '#1e293b'
+};
+
+// Función para restablecer colores predeterminados
+function resetToDefaultColors() {
+    if (primaryColorInput) primaryColorInput.value = DEFAULT_COLORS.primaryColor;
+    if (secondaryColorInput) secondaryColorInput.value = DEFAULT_COLORS.secondaryColor;
+    if (dangerColorInput) dangerColorInput.value = DEFAULT_COLORS.dangerColor;
+    if (warningColorInput) warningColorInput.value = DEFAULT_COLORS.warningColor;
+    
+    updateColorPreviews();
+    applyThemeToPage(DEFAULT_COLORS);
+    showToast('🎨 Colores restablecidos a los valores predeterminados', 'success');
+}
+
+// Evento del botón restablecer colores
+if (resetColorsBtn) {
+    resetColorsBtn.onclick = () => {
+        showConfirm('¿Restablecer todos los colores a los valores predeterminados?', () => {
+            resetToDefaultColors();
+        });
     };
 }
 
@@ -389,7 +564,184 @@ function updatePeakHoursChart() {
     });
 }
 
-// ============ FUNCIONES DE IMAGEN ============
+// ============ SECCIÓN DE VENTAS ============
+function loadSalesData(filter) {
+    const orders = getOrders();
+    const now = new Date();
+    let filtered = [];
+    
+    if (filter === 'day') {
+        filtered = orders.filter(o => new Date(o.date).toDateString() === now.toDateString());
+    } else if (filter === 'week') {
+        const weekAgo = new Date();
+        weekAgo.setDate(now.getDate() - 7);
+        filtered = orders.filter(o => new Date(o.date) >= weekAgo);
+    } else if (filter === 'month') {
+        const monthAgo = new Date();
+        monthAgo.setMonth(now.getMonth() - 1);
+        filtered = orders.filter(o => new Date(o.date) >= monthAgo);
+    } else {
+        const yearAgo = new Date();
+        yearAgo.setFullYear(now.getFullYear() - 1);
+        filtered = orders.filter(o => new Date(o.date) >= yearAgo);
+    }
+    
+    const total = filtered.reduce((sum, o) => sum + (o.total || 0), 0);
+    const count = filtered.length;
+    const average = count > 0 ? total / count : 0;
+    
+    if (salesTotal) salesTotal.textContent = `S/ ${total.toFixed(2)}`;
+    if (salesCount) salesCount.textContent = count;
+    if (salesAverage) salesAverage.textContent = `S/ ${average.toFixed(2)}`;
+    
+    if (salesTableBody) {
+        salesTableBody.innerHTML = '';
+        filtered.forEach(order => {
+            const row = document.createElement('tr');
+            row.style.borderBottom = '1px solid #e2e8f0';
+            const statusClass = order.status === 'entregado' ? 'status-done' : (order.status === 'rechazado' ? 'status-rejected' : 'status-pending');
+            row.innerHTML = `
+                <td style="padding: 0.8rem;">${new Date(order.date).toLocaleDateString('es-PE')}</td>
+                <td style="padding: 0.8rem;">#${order.orderNumber}</td>
+                <td style="padding: 0.8rem;">${order.customerName || 'Cliente'}<br><small>${order.customerPhone || ''}</small></td>
+                <td style="padding: 0.8rem;">${order.paymentMethod || 'No especificado'}</td>
+                <td style="padding: 0.8rem;">S/ ${(order.total || 0).toFixed(2)}</div></td>
+                <td style="padding: 0.8rem;"><span class="order-status-badge ${statusClass}">${order.status}</span></td>
+                <td style="padding: 0.8rem;">
+                    <button class="view-order-details" data-id="${order.id}" style="background:#3b82f6; color:white; border:none; padding:0.2rem 0.6rem; border-radius:8px; cursor:pointer;">Ver</button>
+                    <button class="delete-order-btn" data-id="${order.id}" style="background:#ef4444; color:white; border:none; padding:0.2rem 0.6rem; border-radius:8px; cursor:pointer; margin-left:0.3rem;">Eliminar</button>
+                </div>
+            `;
+            salesTableBody.appendChild(row);
+        });
+        
+        document.querySelectorAll('.view-order-details').forEach(btn => {
+            btn.onclick = () => {
+                const orderId = parseInt(btn.dataset.id);
+                const order = filtered.find(o => o.id === orderId);
+                if (order) {
+                    alert(`📦 Pedido #${order.orderNumber}\n👤 Cliente: ${order.customerName}\n📞 Teléfono: ${order.customerPhone}\n📍 Dirección: ${order.deliveryAddress || 'No especificada'}\n💳 Pago: ${order.paymentMethod}\n📅 Fecha: ${new Date(order.date).toLocaleString()}\n\nProductos:\n${order.items.map(i => `• ${i.name} x${i.quantity} = S/ ${(i.price*i.quantity).toFixed(2)}`).join('\n')}\n\nTotal: S/ ${order.total.toFixed(2)}`);
+                }
+            };
+        });
+        
+        document.querySelectorAll('.delete-order-btn').forEach(btn => {
+            btn.onclick = () => {
+                const orderId = parseInt(btn.dataset.id);
+                showConfirm('¿Eliminar este pedido permanentemente?', () => {
+                    deleteOrder(orderId);
+                    loadSalesData(currentSalesFilter);
+                    showToast('🗑️ Pedido eliminado', 'success');
+                });
+            };
+        });
+    }
+}
+
+function exportSalesToExcel() {
+    const orders = getOrders();
+    const now = new Date();
+    let filtered = [];
+    
+    if (currentSalesFilter === 'day') {
+        filtered = orders.filter(o => new Date(o.date).toDateString() === now.toDateString());
+    } else if (currentSalesFilter === 'week') {
+        const weekAgo = new Date();
+        weekAgo.setDate(now.getDate() - 7);
+        filtered = orders.filter(o => new Date(o.date) >= weekAgo);
+    } else if (currentSalesFilter === 'month') {
+        const monthAgo = new Date();
+        monthAgo.setMonth(now.getMonth() - 1);
+        filtered = orders.filter(o => new Date(o.date) >= monthAgo);
+    } else {
+        const yearAgo = new Date();
+        yearAgo.setFullYear(now.getFullYear() - 1);
+        filtered = orders.filter(o => new Date(o.date) >= yearAgo);
+    }
+    
+    let html = `<html><head><meta charset="UTF-8"><title>Reporte de Ventas</title>
+        <style>th{background:#4f46e5;color:white;padding:8px;}td{padding:8px;border:1px solid #ddd;}table{border-collapse:collapse;width:100%;}</style>
+        </head><body><h2>📊 REPORTE DE VENTAS</h2>
+        <p>Fecha: ${new Date().toLocaleString('es-PE')}</p>
+        <p>Período: ${currentSalesFilter === 'day' ? 'Hoy' : currentSalesFilter === 'week' ? 'Esta semana' : currentSalesFilter === 'month' ? 'Este mes' : 'Este año'}</p>
+        <table border="1"><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Teléfono</th><th>Pago</th><th>Total</th><th>Estado</th></tr></thead><tbody>`;
+    
+    filtered.forEach((o, i) => {
+        html += `<tr>
+            <td>${i+1}</td>
+            <td>${new Date(o.date).toLocaleString()}</td>
+            <td>${o.customerName || 'Cliente'}</td>
+            <td>${o.customerPhone || ''}</td>
+            <td>${o.paymentMethod || '-'}</td>
+            <td>S/ ${(o.total || 0).toFixed(2)}</div></td>
+            <td>${o.status}</td>
+        </tr>`;
+    });
+    
+    const total = filtered.reduce((s, o) => s + (o.total || 0), 0);
+    html += `<tr style="background:#f0f9ff;"><td colspan="5"><strong>TOTAL</strong></div><td><td colspan="2"><strong>S/ ${total.toFixed(2)}</strong> (${filtered.length} pedidos)</div></tr>`;
+    html += `</tbody></table><hr><small>Reporte generado por Kiosco Admin</small></body></html>`;
+    
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `ventas_${currentSalesFilter}_${new Date().toISOString().slice(0,10)}.xls`;
+    link.click();
+    showToast('📥 Reporte exportado', 'success');
+}
+
+function exportSalesToPDF() {
+    const orders = getOrders();
+    const now = new Date();
+    let filtered = [];
+    
+    if (currentSalesFilter === 'day') {
+        filtered = orders.filter(o => new Date(o.date).toDateString() === now.toDateString());
+    } else if (currentSalesFilter === 'week') {
+        const weekAgo = new Date();
+        weekAgo.setDate(now.getDate() - 7);
+        filtered = orders.filter(o => new Date(o.date) >= weekAgo);
+    } else if (currentSalesFilter === 'month') {
+        const monthAgo = new Date();
+        monthAgo.setMonth(now.getMonth() - 1);
+        filtered = orders.filter(o => new Date(o.date) >= monthAgo);
+    } else {
+        const yearAgo = new Date();
+        yearAgo.setFullYear(now.getFullYear() - 1);
+        filtered = orders.filter(o => new Date(o.date) >= yearAgo);
+    }
+    
+    const printWindow = window.open('', '_blank');
+    let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reporte de Ventas</title>
+        <style>body{font-family:Arial;padding:20px;}th{background:#4f46e5;color:white;padding:8px;}td{padding:8px;border:1px solid #ddd;}table{border-collapse:collapse;width:100%;}</style>
+        </head><body><h2>📊 REPORTE DE VENTAS</h2>
+        <p>Fecha: ${new Date().toLocaleString('es-PE')}</p>
+        <p>Período: ${currentSalesFilter === 'day' ? 'Hoy' : currentSalesFilter === 'week' ? 'Esta semana' : currentSalesFilter === 'month' ? 'Este mes' : 'Este año'}</p>
+        <table border="1"><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Teléfono</th><th>Pago</th><th>Total</th><th>Estado</th></tr></thead><tbody>`;
+    
+    filtered.forEach((o, i) => {
+        html += `<tr>
+            <td>${i+1}</td>
+            <td>${new Date(o.date).toLocaleString()}</td>
+            <td>${o.customerName || 'Cliente'}</td>
+            <td>${o.customerPhone || ''}</td>
+            <td>${o.paymentMethod || '-'}</td>
+            <td>S/ ${(o.total || 0).toFixed(2)}</div></td>
+            <td>${o.status}</td>
+        </tr>`;
+    });
+    
+    const total = filtered.reduce((s, o) => s + (o.total || 0), 0);
+    html += `<tr style="background:#f0f9ff;"><td colspan="5"><strong>TOTAL</strong></div><td><td colspan="2"><strong>S/ ${total.toFixed(2)}</strong> (${filtered.length} pedidos)</div></tr>`;
+    html += `</tbody><td><div class="footer"><p>Reporte generado por Kiosco Admin</p></div></body></html>`;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.print();
+    showToast('📄 Reporte enviado a impresión', 'success');
+}
+
+// ============ FUNCIONES DE IMAGEN DE PRODUCTOS ============
 function renderImageGallery(productId) {
     const images = getProductImagesList(productId);
     const container = document.getElementById('imageGalleryContainer');
@@ -471,21 +823,155 @@ if (cancelImageBtn) {
     };
 }
 
-// ============ CONFIGURACIÓN DE MÉTODOS DE PAGO Y VENTANAS ============
+// ============ FUNCIONES DE IMAGEN DE MÉTODOS DE PAGO ============
+function getPaymentMethodImages() {
+    const images = localStorage.getItem('kiosco_payment_method_images');
+    return images ? JSON.parse(images) : {};
+}
+
+function savePaymentMethodImage(methodKey, imageData) {
+    const images = getPaymentMethodImages();
+    images[methodKey] = imageData;
+    localStorage.setItem('kiosco_payment_method_images', JSON.stringify(images));
+    loadPaymentMethods();
+    showToast('✅ Imagen guardada', 'success');
+}
+
+function deletePaymentMethodImage(methodKey) {
+    const images = getPaymentMethodImages();
+    delete images[methodKey];
+    localStorage.setItem('kiosco_payment_method_images', JSON.stringify(images));
+    loadPaymentMethods();
+    showToast('🗑️ Imagen eliminada', 'success');
+}
+
+function openPaymentImageModal(methodKey, methodName) {
+    currentPaymentMethodForImage = methodKey;
+    const modalTitle = document.querySelector('#paymentImageModal h3');
+    if (modalTitle) modalTitle.textContent = `🖼️ Imagen para ${methodName}`;
+    
+    const images = getPaymentMethodImages();
+    const currentImage = images[methodKey];
+    
+    if (paymentImagePreview) {
+        paymentImagePreview.innerHTML = '';
+        if (currentImage) {
+            const img = document.createElement('img');
+            img.src = currentImage;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            paymentImagePreview.appendChild(img);
+        } else {
+            paymentImagePreview.innerHTML = '<span style="color: #999;">Sin imagen</span>';
+        }
+    }
+    
+    if (paymentImageUpload) paymentImageUpload.value = '';
+    if (paymentImageModal) paymentImageModal.style.display = 'flex';
+}
+
+if (paymentImageUpload) {
+    paymentImageUpload.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file && paymentImagePreview) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                paymentImagePreview.innerHTML = '';
+                const img = document.createElement('img');
+                img.src = event.target.result;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'cover';
+                paymentImagePreview.appendChild(img);
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+}
+
+if (savePaymentImageBtn) {
+    savePaymentImageBtn.onclick = () => {
+        const previewImg = paymentImagePreview?.querySelector('img');
+        if (previewImg && currentPaymentMethodForImage) {
+            savePaymentMethodImage(currentPaymentMethodForImage, previewImg.src);
+            if (paymentImageModal) paymentImageModal.style.display = 'none';
+        } else {
+            showToast('Selecciona una imagen primero', 'error');
+        }
+    };
+}
+
+if (removePaymentImageBtn) {
+    removePaymentImageBtn.onclick = () => {
+        if (currentPaymentMethodForImage) {
+            deletePaymentMethodImage(currentPaymentMethodForImage);
+            if (paymentImageModal) paymentImageModal.style.display = 'none';
+        }
+    };
+}
+
+if (cancelPaymentImageBtn) {
+    cancelPaymentImageBtn.onclick = () => {
+        if (paymentImageModal) paymentImageModal.style.display = 'none';
+        currentPaymentMethodForImage = null;
+    };
+}
+
+// ============ CONFIGURACIÓN DE MÉTODOS DE PAGO ============
 function loadPaymentMethods() {
     const settings = getSettings();
-    const methods = settings.paymentMethods || ['yape', 'plin', 'transferencia', 'efectivo'];
-    const methodNames = { 'yape': 'Yape', 'plin': 'Plin', 'transferencia': 'Transferencia', 'efectivo': 'Efectivo' };
+    let methods = settings.paymentMethods || ['yape', 'plin', 'transferencia', 'efectivo'];
+    
+    // 🔧 FIX: Asegurar que methods sea un array de strings
+    if (Array.isArray(methods)) {
+        methods = methods.map(m => {
+            if (typeof m === 'object') {
+                return m.name || m.value || String(m);
+            }
+            return String(m);
+        });
+    } else {
+        methods = ['yape', 'plin', 'transferencia', 'efectivo'];
+    }
+    
+    const methodNames = { 
+        'yape': '📱 Yape', 
+        'plin': '📱 Plin', 
+        'transferencia': '🏦 Transferencia bancaria', 
+        'efectivo': '💵 Efectivo contra entrega' 
+    };
+    const paymentImages = getPaymentMethodImages();
     
     if (paymentMethodsList) {
         paymentMethodsList.innerHTML = '';
-        methods.forEach((method, index) => {
+        if (methods.length === 0) {
+            paymentMethodsList.innerHTML = '<div style="color: #64748b; padding: 0.5rem; text-align:center;">No hay métodos de pago configurados</div>';
+            return;
+        }
+        
+        methods.forEach((method) => {
+            const methodKey = String(method);
+            const displayName = methodNames[methodKey] || methodKey.charAt(0).toUpperCase() + methodKey.slice(1);
+            
             const div = document.createElement('div');
             div.className = 'payment-method-item';
-            div.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid #e2e8f0;';
+            div.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 0.8rem; border-bottom: 1px solid #e2e8f0; background: var(--light); margin-bottom: 0.3rem; border-radius: 8px;';
+            
+            const imageUrl = paymentImages[methodKey];
+            const imageHtml = imageUrl 
+                ? `<img src="${imageUrl}" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover;">` 
+                : '<div style="width: 40px; height: 40px; background: #e2e8f0; border-radius: 8px; display: flex; align-items: center; justify-content: center;">📷</div>';
+            
             div.innerHTML = `
-                <span>${methodNames[method] || method}</span>
-                <button class="delete-payment-method" data-method="${method}" style="background: #ef4444; color: white; border: none; padding: 0.2rem 0.6rem; border-radius: 8px; cursor: pointer;">Eliminar</button>
+                <div class="payment-method-info" style="display: flex; align-items: center; gap: 0.8rem;">
+                    ${imageHtml}
+                    <span style="font-weight: 500;">${displayName}</span>
+                </div>
+                <div>
+                    <button class="edit-payment-image" data-method="${methodKey}" data-name="${displayName}" style="background: #3b82f6; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 8px; margin-right: 0.5rem; cursor: pointer;">🖼️ Imagen</button>
+                    <button class="delete-payment-method" data-method="${methodKey}" style="background: #ef4444; color: white; border: none; padding: 0.3rem 0.8rem; border-radius: 8px; cursor: pointer;">🗑️ Eliminar</button>
+                </div>
             `;
             paymentMethodsList.appendChild(div);
         });
@@ -493,69 +979,57 @@ function loadPaymentMethods() {
         document.querySelectorAll('.delete-payment-method').forEach(btn => {
             btn.onclick = () => {
                 const method = btn.dataset.method;
-                let settings = getSettings();
-                settings.paymentMethods = settings.paymentMethods.filter(m => m !== method);
-                saveSettings(settings);
-                loadPaymentMethods();
-                showToast('✅ Método eliminado', 'success');
+                showConfirm(`¿Eliminar el método de pago "${methodNames[method] || method}"?`, () => {
+                    let settings = getSettings();
+                    let methodsArray = settings.paymentMethods || [];
+                    methodsArray = methodsArray.filter(m => {
+                        const mKey = typeof m === 'object' ? (m.name || m.value) : String(m);
+                        return mKey !== method;
+                    });
+                    settings.paymentMethods = methodsArray;
+                    saveSettings(settings);
+                    deletePaymentMethodImage(method);
+                    loadPaymentMethods();
+                    showToast('✅ Método de pago eliminado', 'success');
+                    addActivityLog('Método de pago eliminado', `Se eliminó "${method}" de los métodos de pago`, 'general');
+                });
             };
-        });
-    }
-}
-
-function loadDeliveryWindows() {
-    const windows = getDeliveryWindows();
-    if (deliveryWindowsList) {
-        deliveryWindowsList.innerHTML = '';
-        windows.forEach((window, index) => {
-            const div = document.createElement('div');
-            div.className = 'delivery-window-item';
-            div.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid #e2e8f0;';
-            div.innerHTML = `
-                <span>⏰ ${window}</span>
-                <button class="delete-window" data-window="${window}" style="background: #ef4444; color: white; border: none; padding: 0.2rem 0.6rem; border-radius: 8px; cursor: pointer;">Eliminar</button>
-            `;
-            deliveryWindowsList.appendChild(div);
         });
         
-        document.querySelectorAll('.delete-window').forEach(btn => {
+        document.querySelectorAll('.edit-payment-image').forEach(btn => {
             btn.onclick = () => {
-                const windowVal = btn.dataset.window;
-                let settings = getSettings();
-                settings.deliveryWindows = settings.deliveryWindows.filter(w => w !== windowVal);
-                saveSettings(settings);
-                loadDeliveryWindows();
-                showToast('✅ Ventana eliminada', 'success');
+                const method = btn.dataset.method;
+                const name = btn.dataset.name;
+                openPaymentImageModal(method, name);
             };
         });
     }
 }
 
+// ============ AGREGAR MÉTODOS DE PAGO ============
 if (addPaymentMethodBtn) {
     addPaymentMethodBtn.onclick = () => {
-        const newMethod = prompt('Ingrese el nombre del nuevo método de pago:', '');
-        if (newMethod) {
-            let settings = getSettings();
-            if (!settings.paymentMethods) settings.paymentMethods = [];
-            settings.paymentMethods.push(newMethod.toLowerCase().replace(/\s/g, '_'));
-            saveSettings(settings);
-            loadPaymentMethods();
-            showToast('✅ Método agregado', 'success');
+        const newMethod = newPaymentMethodInput?.value.trim();
+        if (!newMethod) {
+            showToast('Ingresa un nombre para el método de pago', 'error');
+            return;
         }
-    };
-}
-
-if (addDeliveryWindowBtn) {
-    addDeliveryWindowBtn.onclick = () => {
-        const newWindow = prompt('Ingrese la ventana de entrega (ej: 10:00-12:00):', '');
-        if (newWindow) {
-            let settings = getSettings();
-            if (!settings.deliveryWindows) settings.deliveryWindows = [];
-            settings.deliveryWindows.push(newWindow);
-            saveSettings(settings);
-            loadDeliveryWindows();
-            showToast('✅ Ventana agregada', 'success');
+        
+        const methodKey = newMethod.toLowerCase().replace(/\s/g, '_');
+        let settings = getSettings();
+        if (!settings.paymentMethods) settings.paymentMethods = ['yape', 'plin', 'transferencia', 'efectivo'];
+        
+        if (settings.paymentMethods.includes(methodKey)) {
+            showToast('⚠️ Este método de pago ya existe', 'error');
+            return;
         }
+        
+        settings.paymentMethods.push(methodKey);
+        saveSettings(settings);
+        if (newPaymentMethodInput) newPaymentMethodInput.value = '';
+        loadPaymentMethods();
+        showToast(`✅ Método "${newMethod}" agregado`, 'success');
+        addActivityLog('Método de pago agregado', `Se agregó "${newMethod}" a los métodos de pago`, 'general');
     };
 }
 
@@ -573,8 +1047,10 @@ if (loginBtn) {
             loadProfitableProducts();
             loadThemeSettings();
             loadLogoPreview();
+            loadBusinessName();
             loadPaymentMethods();
-            loadDeliveryWindows();
+            loadSalesData('day');
+            loadSettings();
             showToast('✅ Bienvenido Administrador', 'success');
             addActivityLog('Inicio de sesión', 'Administrador ingresó al panel', 'auth');
         } else {
@@ -954,8 +1430,6 @@ function renderOrders(filter) {
                 ${order.deliveryAddress ? `<strong>📍 Dirección:</strong> ${order.deliveryAddress}<br>` : ''}
                 ${order.deliveryWindow ? `<strong>⏰ Ventana de entrega:</strong> ${order.deliveryWindow}<br>` : ''}
                 ${order.deliveryDate ? `<strong>📅 Fecha de entrega:</strong> ${new Date(order.deliveryDate).toLocaleDateString()}<br>` : ''}
-                ${order.scheduledDate ? `<strong>📆 Programado para:</strong> ${new Date(order.scheduledDate).toLocaleString()}<br>` : ''}
-                ${order.estimatedTime ? `<strong>⏱️ Tiempo estimado:</strong> ${order.estimatedTime} min` : ''}
                 <select class="order-status-select" data-id="${order.id}" style="margin-left: 0.5rem; padding: 0.3rem; border-radius: 8px;">
                     <option value="pendiente" ${order.status === 'pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
                     <option value="confirmado" ${order.status === 'confirmado' ? 'selected' : ''}>✅ Confirmado</option>
@@ -1079,8 +1553,8 @@ function downloadExcel() {
     });
     
     const totalIngresos = currentOrders.reduce((s, o) => s + (o.total || 0), 0);
-    tableHtml += `<tr style="background:#f0f9ff;"><td colspan="5"><strong>TOTAL</strong></td><td><strong>S/ ${totalIngresos.toFixed(2)}</strong></td><td>${currentOrders.length} pedidos</td></tr>`;
-    tableHtml += `</tbody><table><hr><small>Reporte generado por Kiosco Admin</small></body></html>`;
+    tableHtml += `<tr style="background:#f0f9ff;"><td colspan="5"><strong>TOTAL</strong></td><td colspan="2"><strong>S/ ${totalIngresos.toFixed(2)}</strong> (${currentOrders.length} pedidos)</div></tr>`;
+    tableHtml += `</tbody></table><hr><small>Reporte generado por Kiosco Admin</small></body></html>`;
     
     const blob = new Blob([tableHtml], { type: 'application/vnd.ms-excel' });
     const link = document.createElement('a');
@@ -1116,8 +1590,8 @@ function downloadPDF() {
     });
     
     const totalIngresos = currentOrders.reduce((s, o) => s + (o.total || 0), 0);
-    html += `<tr style="background:#f0f9ff;"><td colspan="5"><strong>TOTAL</strong></td><td><strong>S/ ${totalIngresos.toFixed(2)}</strong></td><td>${currentOrders.length} pedidos</td></tr>`;
-    html += `</tbody><table><div class="footer"><p>Reporte generado por Kiosco Admin</p></div></body></html>`;
+    html += `<tr style="background:#f0f9ff;"><td colspan="5"><strong>TOTAL</strong></td><td colspan="2"><strong>S/ ${totalIngresos.toFixed(2)}</strong> (${currentOrders.length} pedidos)</div></tr>`;
+    html += `</tbody></tr><div class="footer"><p>Reporte generado por Kiosco Admin</p></div></body></html>`;
     
     printWindow.document.write(html);
     printWindow.document.close();
@@ -1149,20 +1623,37 @@ document.querySelectorAll('.main-tab').forEach(btn => {
         if (btn.dataset.main === 'settings') {
             loadSettings();
             loadPaymentMethods();
-            loadDeliveryWindows();
         }
         if (btn.dataset.main === 'customize') {
             loadThemeSettings();
             loadLogoPreview();
+            loadBusinessName();
+        }
+        if (btn.dataset.main === 'sales') {
+            loadSalesData(currentSalesFilter);
         }
     };
 });
 
+// ============ EVENTOS DE VENTAS ============
+if (applySalesFilter) {
+    applySalesFilter.onclick = () => {
+        currentSalesFilter = salesFilter?.value || 'day';
+        loadSalesData(currentSalesFilter);
+    };
+}
+
+if (exportSalesBtn) {
+    exportSalesBtn.onclick = exportSalesToExcel;
+}
+
+if (exportSalesPdfBtn) {
+    exportSalesPdfBtn.onclick = exportSalesToPDF;
+}
+
 // ============ CONFIGURACIÓN ============
 function loadSettings() {
     const settings = getSettings();
-    if (businessNameInput) businessNameInput.value = settings.businessName || 'Kiosco';
-    if (businessPhoneInput) businessPhoneInput.value = settings.businessPhone || '+51914491874';
     if (businessRUCInput) businessRUCInput.value = settings.businessRUC || '';
     if (businessAddressInput) businessAddressInput.value = settings.businessAddress || '';
     if (deliveryCostInput) deliveryCostInput.value = settings.deliveryCost || 3;
@@ -1172,20 +1663,20 @@ function loadSettings() {
 if (saveSettingsBtn) {
     saveSettingsBtn.onclick = () => {
         const settings = {
-            businessName: businessNameInput?.value || 'Kiosco',
-            businessPhone: businessPhoneInput?.value || '+51914491874',
+            businessName: getSettings().businessName || 'Kiosco',
+            businessPhone: getSettings().businessPhone || '914491874',
             businessRUC: businessRUCInput?.value || '',
             businessAddress: businessAddressInput?.value || '',
             deliveryCost: parseFloat(deliveryCostInput?.value || 3),
             freeDeliveryMin: parseFloat(freeDeliveryMinInput?.value || 20),
             paymentMethods: getSettings().paymentMethods || ['yape', 'plin', 'transferencia', 'efectivo'],
-            deliveryWindows: getSettings().deliveryWindows || ['10:00-12:00', '12:00-14:00', '14:00-16:00', '16:00-18:00', '18:00-20:00'],
             scheduleStart: getSettings().scheduleStart || '08:00',
             scheduleEnd: getSettings().scheduleEnd || '22:00'
         };
         saveSettings(settings);
         showToast('✅ Configuración guardada', 'success');
         addActivityLog('Configuración', 'Se actualizó la configuración del negocio', 'general');
+        loadPaymentMethods();
     };
 }
 
@@ -1255,6 +1746,9 @@ window.addEventListener('ordersUpdated', () => {
         updateRevenueChart('week');
         updateTopProductsChart();
         updatePeakHoursChart();
+        if (document.querySelector('.main-tab.active')?.dataset.main === 'sales') {
+            loadSalesData(currentSalesFilter);
+        }
     }
 });
 
@@ -1265,3 +1759,18 @@ window.addEventListener('imagesUpdated', () => {
 window.addEventListener('themeUpdated', () => {
     loadThemeSettings();
 });
+
+window.addEventListener('logoUpdated', () => {
+    loadLogoPreview();
+    loadBusinessName();
+});
+
+// Cargar el script de Leaflet si no está disponible
+if (typeof L === 'undefined') {
+    const leafletScript = document.createElement('script');
+    leafletScript.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    leafletScript.onload = () => {
+        console.log('Leaflet cargado correctamente');
+    };
+    document.head.appendChild(leafletScript);
+}

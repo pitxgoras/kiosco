@@ -6,30 +6,109 @@
     <title>Admin Kiosco - Panel de Control</title>
     <link rel="stylesheet" href="css/admin.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        /* Estilos adicionales para personalización */
-        .color-preview {
-            width: 30px;
-            height: 30px;
+        .color-preview { width: 30px; height: 30px; border-radius: 8px; display: inline-block; margin-left: 10px; vertical-align: middle; border: 1px solid #ddd; }
+        .logo-preview { max-width: 100px; max-height: 50px; margin-top: 10px; }
+        .sales-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
+        .sales-card { background: var(--white); border-radius: 12px; padding: 1rem; text-align: center; }
+        .sales-card h3 { font-size: 1.8rem; color: var(--primary); }
+        .order-card { transition: all 0.3s ease; }
+        .order-card:hover { transform: translateX(4px); }
+        .filters-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+        .payment-method-item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 0.8rem; 
+            border-bottom: 1px solid #e2e8f0; 
+            background: var(--light); 
+            margin-bottom: 0.3rem; 
             border-radius: 8px;
-            display: inline-block;
-            margin-left: 10px;
-            vertical-align: middle;
-            border: 1px solid #ddd;
         }
-        .logo-preview {
-            max-width: 100px;
-            max-height: 50px;
-            margin-top: 10px;
+        .payment-method-info {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+        .payment-method-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            object-fit: cover;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        .payment-method-icon img {
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+        .form-group-inline {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .form-group-inline input {
+            flex: 1;
+            min-width: 150px;
+        }
+        .current-location-btn {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-left: 1rem;
+        }
+        .location-info {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background: var(--light);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: var(--gray);
+        }
+        .small-map {
+            height: 150px;
+            border-radius: 8px;
+            margin-top: 0.5rem;
+        }
+        .reset-colors-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-left: 1rem;
+        }
+        .color-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
         }
     </style>
 </head>
 <body class="admin-body">
     <header class="admin-header">
-        <div class="logo-container">
+        <div class="logo-container" style="display: flex; align-items: center; gap: 10px;">
             <img id="headerLogo" src="" alt="Logo" style="height: 40px; display: none;">
             <a href="index.html" class="logo-link" style="text-decoration: none;">
-                <h1>🛒 Kiosco</h1>
+                <h1 id="headerTitle">🛒 Kiosco</h1>
                 <p>Panel de Administración</p>
             </a>
         </div>
@@ -53,13 +132,14 @@
                 <input type="password" id="adminPhone" placeholder="Número de teléfono" autocomplete="off">
             </div>
             <button id="loginAdminBtn" class="btn-login">🔐 Ingresar</button>
-            <div class="hidden-number">🔒 Número registrado en el sistema</div>
+            <div class="hidden-number">Desarrollador: Pitxgoras</div>
         </div>
 
         <div id="adminDashboard" style="display:none;">
             <!-- Pestañas principales -->
             <div class="main-tabs">
                 <button class="main-tab active" data-main="dashboard">📊 Dashboard</button>
+                <button class="main-tab" data-main="sales">💰 Ventas</button>
                 <button class="main-tab" data-main="reports">📈 Reportes</button>
                 <button class="main-tab" data-main="activity">📝 Actividad</button>
                 <button class="main-tab" data-main="customize">🎨 Personalizar</button>
@@ -100,17 +180,38 @@
                         <div id="categoriesAdminList"></div>
                     </div>
                 </div>
+            </div>
 
+            <!-- Ventas -->
+            <div id="salesMain" class="main-content" style="display:none;">
                 <div class="admin-section">
-                    <h2>📊 Ventas en Tiempo Real</h2>
-                    <div class="date-filters">
-                        <button id="filterDay" class="filter-btn active">📅 Hoy</button>
-                        <button id="filterWeek" class="filter-btn">📆 Semana</button>
-                        <button id="filterMonth" class="filter-btn">📈 Mes</button>
-                        <button id="downloadReportBtn" class="btn-download">📥 Excel</button>
-                        <button id="downloadPdfBtn" class="btn-download" style="background:#ef4444;">📄 PDF</button>
+                    <h2>💰 Resumen de Ventas</h2>
+                    <div class="filters-row">
+                        <select id="salesFilter" class="form-control" style="width: auto;">
+                            <option value="day">📅 Hoy</option>
+                            <option value="week">📆 Esta semana</option>
+                            <option value="month">📈 Este mes</option>
+                            <option value="year">📊 Este año</option>
+                        </select>
+                        <button id="applySalesFilter" class="btn-success">Aplicar filtro</button>
+                        <button id="exportSalesBtn" class="btn-download">📥 Exportar Excel</button>
+                        <button id="exportSalesPdfBtn" class="btn-download" style="background:#ef4444;">📄 Exportar PDF</button>
                     </div>
-                    <div id="ordersList" class="orders-list"></div>
+                    
+                    <div class="sales-summary" id="salesSummary">
+                        <div class="sales-card"><h3 id="salesTotal">S/ 0</h3><p>Total ventas</p></div>
+                        <div class="sales-card"><h3 id="salesCount">0</h3><p>N° pedidos</p></div>
+                        <div class="sales-card"><h3 id="salesAverage">S/ 0</h3><p>Ticket promedio</p></div>
+                    </div>
+                    
+                    <div style="overflow-x: auto;">
+                        <table class="sales-table" style="width:100%; border-collapse: collapse;">
+                            <thead>
+                                <tr><th>Fecha</th><th>Pedido #</th><th>Cliente</th><th>Pago</th><th>Total</th><th>Estado</th><th>Acciones</th></tr>
+                            </thead>
+                            <tbody id="salesTableBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -144,39 +245,53 @@
                 </div>
             </div>
 
-            <!-- Personalización -->
+            <!-- Personalización con botón Restablecer Colores -->
             <div id="customizeMain" class="main-content" style="display:none;">
                 <div class="admin-section">
                     <h2>🎨 Personalización de la tienda</h2>
                     
-                    <h3>Colores</h3>
-                    <div class="form-group">
+                    <h3>🎨 Colores</h3>
+                    <div class="color-row">
                         <label>Color principal</label>
                         <input type="color" id="primaryColor" class="form-control" style="width: 80px;">
                         <div class="color-preview" id="primaryPreview"></div>
+                        <span style="color: #64748b; font-size: 0.8rem;">#6366f1</span>
                     </div>
-                    <div class="form-group">
+                    <div class="color-row">
                         <label>Color secundario</label>
                         <input type="color" id="secondaryColor" class="form-control" style="width: 80px;">
                         <div class="color-preview" id="secondaryPreview"></div>
+                        <span style="color: #64748b; font-size: 0.8rem;">#10b981</span>
                     </div>
-                    <div class="form-group">
+                    <div class="color-row">
                         <label>Color de peligro</label>
                         <input type="color" id="dangerColor" class="form-control" style="width: 80px;">
                         <div class="color-preview" id="dangerPreview"></div>
+                        <span style="color: #64748b; font-size: 0.8rem;">#ef4444</span>
                     </div>
-                    <div class="form-group">
+                    <div class="color-row">
                         <label>Color de advertencia</label>
                         <input type="color" id="warningColor" class="form-control" style="width: 80px;">
                         <div class="color-preview" id="warningPreview"></div>
+                        <span style="color: #64748b; font-size: 0.8rem;">#f59e0b</span>
                     </div>
                     
-                    <h3>Logo del negocio</h3>
+                    <div style="margin: 1rem 0;">
+                        <button id="resetColorsBtn" class="reset-colors-btn">🔄 Restablecer colores predeterminados</button>
+                    </div>
+                    
+                    <h3>🖼️ Logo del negocio</h3>
                     <div class="form-group">
                         <input type="file" id="logoUpload" accept="image/*">
                         <button id="uploadLogoBtn" class="btn-success">📤 Subir logo</button>
                         <button id="removeLogoBtn" class="btn-danger">🗑️ Eliminar logo</button>
                         <div id="logoPreview"></div>
+                    </div>
+                    
+                    <h3>🏷️ Nombre del negocio</h3>
+                    <div class="form-group">
+                        <input type="text" id="businessNameDisplay" class="form-control" placeholder="Nombre de la tienda">
+                        <button id="updateBusinessNameBtn" class="btn-success">💾 Actualizar nombre</button>
                     </div>
                     
                     <button id="saveThemeBtn" class="btn-success" style="margin-top: 1rem;">💾 Guardar cambios</button>
@@ -187,20 +302,39 @@
             <div id="settingsMain" class="main-content" style="display:none;">
                 <div class="admin-section">
                     <h2>⚙️ Configuración del negocio</h2>
-                    <div class="form-group"><label>Nombre</label><input type="text" id="businessName" class="form-control"></div>
-                    <div class="form-group"><label>Teléfono</label><input type="tel" id="businessPhone" class="form-control"></div>
-                    <div class="form-group"><label>RUC</label><input type="text" id="businessRUC" class="form-control"></div>
-                    <div class="form-group"><label>Dirección</label><input type="text" id="businessAddress" class="form-control"></div>
-                    <div class="form-group"><label>Costo de envío (S/)</label><input type="number" id="deliveryCostSetting" class="form-control" step="0.5"></div>
-                    <div class="form-group"><label>Envío gratis desde (S/)</label><input type="number" id="freeDeliveryMin" class="form-control" step="0.5"></div>
                     
-                    <h3>Métodos de pago</h3>
-                    <div id="paymentMethodsList"></div>
-                    <button id="addPaymentMethodBtn" class="btn-success" style="margin-top:0.5rem;">➕ Agregar método</button>
+                    <div class="form-group">
+                        <label>RUC</label>
+                        <input type="text" id="businessRUC" class="form-control" placeholder="Ingrese su RUC">
+                    </div>
                     
-                    <h3>Ventanas de entrega</h3>
-                    <div id="deliveryWindowsList"></div>
-                    <button id="addDeliveryWindowBtn" class="btn-success" style="margin-top:0.5rem;">➕ Agregar ventana</button>
+                    <div class="form-group">
+                        <label>Dirección del negocio</label>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            <input type="text" id="businessAddress" class="form-control" placeholder="Dirección del negocio" style="flex: 1;">
+                            <button id="getCurrentLocationBtn" class="btn-primary" style="background: #3b82f6; white-space: nowrap;">📍 Mi ubicación</button>
+                        </div>
+                        <div id="locationInfo" class="location-info" style="display: none;">
+                            <span id="locationCoords"></span>
+                            <div id="miniMap" class="small-map"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Costo de envío (S/)</label>
+                        <input type="number" id="deliveryCostSetting" class="form-control" step="0.5" value="3">
+                    </div>
+                    <div class="form-group">
+                        <label>Envío gratis desde (S/)</label>
+                        <input type="number" id="freeDeliveryMin" class="form-control" step="0.5" value="20">
+                    </div>
+                    
+                    <h3>💳 Métodos de pago</h3>
+                    <div id="paymentMethodsList" class="payment-methods-list" style="margin-bottom: 1rem;"></div>
+                    <div class="form-group-inline">
+                        <input type="text" id="newPaymentMethod" class="form-control" placeholder="Nuevo método de pago (ej: Yape, Plin)">
+                        <button id="addPaymentMethodBtn" class="btn-success">➕ Agregar</button>
+                    </div>
                     
                     <button id="saveSettingsBtn" class="btn-success" style="margin-top: 1rem;">💾 Guardar configuración</button>
                 </div>
@@ -208,29 +342,36 @@
         </div>
     </main>
 
-    <div id="imageModal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
-            <h3>🖼️ Galería de imágenes</h3>
-            <div id="imageGalleryContainer" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0;"></div>
-            <div id="imagePreview" style="width: 150px; height: 150px; margin: 0 auto; border: 2px dashed #ddd; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                <span style="color: #999;">Vista previa</span>
+    <!-- Modal para editar imagen del método de pago -->
+    <div id="paymentImageModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <h3>🖼️ Imagen del método de pago</h3>
+            <div style="text-align: center; margin: 1rem 0;">
+                <div id="paymentImagePreview" style="width: 120px; height: 120px; margin: 0 auto; border: 2px dashed #ddd; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #f1f5f9;">
+                    <span style="color: #999;">Sin imagen</span>
+                </div>
             </div>
-            <input type="file" id="imageUpload" accept="image/*" style="margin: 1rem 0; width: 100%;">
+            <input type="file" id="paymentImageUpload" accept="image/*" style="width: 100%; margin-bottom: 1rem;">
             <div class="modal-buttons">
-                <button id="saveImageBtn" class="btn-success">➕ Agregar imagen</button>
-                <button id="cancelImageBtn" class="btn-danger">Cerrar</button>
+                <button id="savePaymentImageBtn" class="btn-success">Guardar imagen</button>
+                <button id="removePaymentImageBtn" class="btn-danger">Eliminar imagen</button>
+                <button id="cancelPaymentImageBtn" class="btn-secondary">Cerrar</button>
             </div>
         </div>
     </div>
 
-    <div id="confirmModal" class="modal">
-        <div class="modal-content">
-            <p id="confirmMessage"></p>
-            <div class="modal-buttons">
-                <button id="confirmYes" class="btn-success">Sí</button>
-                <button id="confirmNo" class="btn-danger">No</button>
-            </div>
+    <div id="imageModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <h3>🖼️ Galería de imágenes</h3>
+            <div id="imageGalleryContainer" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0;"></div>
+            <div id="imagePreview" style="width: 150px; height: 150px; margin: 0 auto; border: 2px dashed #ddd; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden;"><span style="color: #999;">Vista previa</span></div>
+            <input type="file" id="imageUpload" accept="image/*" style="margin: 1rem 0; width: 100%;">
+            <div class="modal-buttons"><button id="saveImageBtn" class="btn-success">➕ Agregar imagen</button><button id="cancelImageBtn" class="btn-danger">Cerrar</button></div>
         </div>
+    </div>
+
+    <div id="confirmModal" class="modal">
+        <div class="modal-content"><p id="confirmMessage"></p><div class="modal-buttons"><button id="confirmYes" class="btn-success">Sí</button><button id="confirmNo" class="btn-danger">No</button></div></div>
     </div>
 
     <script src="js/database.js"></script>

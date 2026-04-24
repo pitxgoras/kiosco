@@ -17,18 +17,18 @@ const STORAGE_KEYS = {
 function initDB() {
     if (!localStorage.getItem(STORAGE_KEYS.PRODUCTS)) {
         const defaultProducts = {
-            '🥤 Bebidas': [
+            'Bebidas': [
                 { id: 1, name: 'Coca Cola 500ml', price: 3.5, stock: 50, cost: 2.0 },
                 { id: 2, name: 'Inca Kola 500ml', price: 3.5, stock: 45, cost: 2.0 },
                 { id: 3, name: 'Sprite 500ml', price: 3.0, stock: 30, cost: 1.8 },
                 { id: 4, name: 'Fanta 500ml', price: 3.0, stock: 25, cost: 1.8 }
             ],
-            '🍿 Snacks': [
+            'Snacks': [
                 { id: 5, name: 'Papas Lays', price: 4.0, stock: 20, cost: 2.5 },
                 { id: 6, name: 'Doritos', price: 4.5, stock: 15, cost: 2.8 },
                 { id: 7, name: 'Ruffles', price: 4.0, stock: 18, cost: 2.5 }
             ],
-            '🍫 Dulces': [
+            'Dulces': [
                 { id: 8, name: 'Chocolate Sublime', price: 2.5, stock: 40, cost: 1.2 },
                 { id: 9, name: "M&M's", price: 3.0, stock: 35, cost: 1.5 }
             ]
@@ -41,7 +41,7 @@ function initDB() {
     }
     
     if (!localStorage.getItem(STORAGE_KEYS.ADMIN_PHONE)) {
-        localStorage.setItem(STORAGE_KEYS.ADMIN_PHONE, '+51914491874');
+        localStorage.setItem(STORAGE_KEYS.ADMIN_PHONE, '914491874');
     }
     
     if (!localStorage.getItem(STORAGE_KEYS.PRODUCT_IMAGES)) {
@@ -63,7 +63,7 @@ function initDB() {
     if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
         localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify({
             businessName: 'Kiosco',
-            businessPhone: '+51914491874',
+            businessPhone: '914491874',
             businessRUC: '',
             businessAddress: '',
             deliveryCost: 3.0,
@@ -223,8 +223,8 @@ function generateInvoiceHTML(invoice) {
                             <tr>
                                 <td>${item.quantity}</td>
                                 <td>${item.name}</td>
-                                <td>S/ ${item.price.toFixed(2)}</td>
-                                <td>S/ ${(item.price * item.quantity).toFixed(2)}</td>
+                                <td>S/ ${item.price.toFixed(2)}</div></td>
+                                <td>S/ ${(item.price * item.quantity).toFixed(2)}</div></td>
                             </tr>
                         `).join('')}
                     </tbody>
