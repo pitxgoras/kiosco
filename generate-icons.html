@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generador de Íconos PWA - Kiosco</title>
+    <style>
+        body { font-family: monospace; padding: 2rem; background: #667eea; color: white; }
+        .icon-grid { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 2rem; }
+        .icon { text-align: center; background: white; padding: 1rem; border-radius: 1rem; }
+        canvas { border-radius: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body>
+    <h1>🎨 Generador de Íconos PWA - Kiosco</h1>
+    <p>Haz clic en cada botón para descargar los íconos</p>
+    <div class="icon-grid" id="icon-grid"></div>
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+        const container = document.getElementById('icon-grid');
+        
+        function generateIcon(size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Gradiente de fondo
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // Borde redondeado
+            ctx.globalCompositeOperation = 'destination-in';
+            ctx.beginPath();
+            ctx.roundRect(0, 0, size, size, size * 0.2);
+            ctx.fill();
+            ctx.globalCompositeOperation = 'source-over';
+            
+            // Emoji de carrito
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size * 0.5}px "Segoe UI Emoji"`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🛒', size/2, size/2);
+            
+            return canvas;
+        }
+        
+        // Helper para roundRect
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+                if (w < 2 * r) r = w / 2;
+                if (h < 2 * r) r = h / 2;
+                this.moveTo(x+r, y);
+                this.lineTo(x+w-r, y);
+                this.quadraticCurveTo(x+w, y, x+w, y+r);
+                this.lineTo(x+w, y+h-r);
+                this.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+                this.lineTo(x+r, y+h);
+                this.quadraticCurveTo(x, y+h, x, y+h-r);
+                this.lineTo(x, y+r);
+                this.quadraticCurveTo(x, y, x+r, y);
+                return this;
+            };
+        }
+        
+        sizes.forEach(size => {
+            const canvas = generateIcon(size);
+            const div = document.createElement('div');
+            div.className = 'icon';
+            div.innerHTML = `
+                <canvas width="${size}" height="${size}" style="width:100px;height:100px"></canvas>
+                <p>${size}x${size}</p>
+                <button onclick="downloadIcon(${size})">📥 Descargar</button>
+            `;
+            div.querySelector('canvas').getContext('2d').drawImage(canvas, 0, 0);
+            div.querySelector('button').onclick = () => downloadIcon(size, canvas);
+            container.appendChild(div);
+        });
+        
+        function downloadIcon(size, canvas) {
+            const link = document.createElement('a');
+            link.download = `icon-${size}x${size}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+    </script>
+</body>
+</html>

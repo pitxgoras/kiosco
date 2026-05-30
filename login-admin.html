@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="theme-color" content="#4F46E5">
+    <meta name="description" content="Acceso al panel de administración de Kiosco">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Admin Login">
+    <title>Admin Login - Kiosco</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="assets/icons/icon-192x192.png">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/login-admin.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('✅ Service Worker registrado:', reg.scope))
+                    .catch(err => console.log('❌ Error registrando Service Worker:', err));
+            });
+        }
+    </script>
+</head>
+<body>
+    <!-- Slideshow de fondo -->
+    <div class="slideshow-container" aria-hidden="true">
+        <div class="slide active" style="background-image: url('assets/images/1.png');"></div>
+        <div class="slide" style="background-image: url('assets/images/2.png');"></div>
+        <div class="slide" style="background-image: url('assets/images/3.png');"></div>
+        <div class="overlay"></div>
+        <div class="slideshow-fallback" style="display: none;"></div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar" aria-label="Navegación principal">
+        <div class="nav-brand">
+            <div class="logo-icon" aria-hidden="true">🛒</div>
+            <div class="brand-text">
+                <h1>Kiosco</h1>
+                <p>Panel de Administración</p>
+            </div>
+        </div>
+        <div class="nav-actions">
+            <div class="theme-toggle" id="themeToggle" role="button" tabindex="0" aria-label="Cambiar tema oscuro/claro">
+                <span class="theme-icon light" aria-hidden="true">☀️</span>
+                <div class="toggle-switch"></div>
+                <span class="theme-icon dark" aria-hidden="true">🌙</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Login centrado -->
+    <main class="login-wrapper">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-icon" aria-hidden="true">👑</div>
+                <h2>Acceso Administrador</h2>
+                <p>Ingresa tus credenciales para continuar</p>
+            </div>
+            
+            <div class="login-form">
+                <div class="input-group">
+                    <input type="tel" id="adminPhone" placeholder="Número de teléfono" autocomplete="off" aria-label="Número de teléfono">
+                    <span class="input-icon" aria-hidden="true">📞</span>
+                </div>
+                
+                <div class="input-group">
+                    <input type="password" id="adminPassword" placeholder="Contraseña" autocomplete="off" aria-label="Contraseña">
+                    <span class="input-icon" aria-hidden="true">🔒</span>
+                </div>
+                
+                <p class="password-hint">🔐 Ingrese sus 6 dígitos</p>
+                
+                <button id="loginBtn" class="login-btn" aria-label="Ingresar al panel de administración">
+                    <span>Ingresar</span>
+                    <span class="btn-icon" aria-hidden="true">→</span>
+                </button>
+                
+                <p id="loginError" class="error-message" role="alert" aria-live="polite">
+                    ❌ Credenciales incorrectas
+                </p>
+                
+                <div class="back-to-store">
+                    <a href="index.html" class="back-btn" aria-label="Volver a la tienda">
+                        <span aria-hidden="true">←</span> Volver a la tienda
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="indicators" aria-label="Indicadores de imágenes">
+        <span class="indicator active" data-index="0" role="button" tabindex="0" aria-label="Imagen 1"></span>
+        <span class="indicator" data-index="1" role="button" tabindex="0" aria-label="Imagen 2"></span>
+        <span class="indicator" data-index="2" role="button" tabindex="0" aria-label="Imagen 3"></span>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" aria-label="Notificación"></div>
+
+    <script>
+        (function() {
+            // ========== SLIDESHOW ==========
+            const slides = document.querySelectorAll('.slide');
+            const indicators = document.querySelectorAll('.indicator');
+            let currentSlide = 0;
+            let slideInterval;
+
+            function changeSlide(index) {
+                if (!slides.length) return;
+                slides.forEach(slide => slide.classList.remove('active'));
+                indicators.forEach(ind => ind.classList.remove('active'));
+                slides[index].classList.add('active');
+                if (indicators[index]) indicators[index].classList.add('active');
+                currentSlide = index;
+            }
+
+            function nextSlide() {
+                if (!slides.length) return;
+                let next = (currentSlide + 1) % slides.length;
+                changeSlide(next);
+            }
+
+            function startSlideshow() {
+                if (slideInterval) clearInterval(slideInterval);
+                slideInterval = setInterval(nextSlide, 5000);
+            }
+
+            slides.forEach(slide => {
+                const imgUrl = slide.style.backgroundImage.slice(5, -2);
+                const img = new Image();
+                img.onload = () => {};
+                img.onerror = () => {
+                    slide.style.backgroundColor = '#667eea';
+                    slide.style.backgroundImage = 'none';
+                };
+                img.src = imgUrl;
+            });
+
+            if (indicators.length) {
+                indicators.forEach(ind => {
+                    ind.addEventListener('click', () => {
+                        if (slideInterval) clearInterval(slideInterval);
+                        changeSlide(parseInt(ind.dataset.index));
+                        startSlideshow();
+                    });
+                    
+                    ind.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            if (slideInterval) clearInterval(slideInterval);
+                            changeSlide(parseInt(ind.dataset.index));
+                            startSlideshow();
+                        }
+                    });
+                });
+            }
+
+            startSlideshow();
+
+            // ========== TOAST FUNCTION ==========
+            function showToast(message, isError = false) {
+                const toast = document.getElementById('toast');
+                if (!toast) return;
+                toast.textContent = message;
+                toast.style.background = isError ? '#e74c3c' : '#27ae60';
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 3000);
+            }
+
+            // ========== CREDENCIALES ==========
+            const ADMIN_CREDENTIALS = {
+                phone: "914491874",
+                password: "123456"
+            };
+
+            // ========== CORRECCIÓN: NO REDIRIGIR AUTOMÁTICAMENTE ==========
+            // ELIMINADA la redirección automática que causaba el problema
+            // Ahora el usuario debe iniciar sesión manualmente siempre
+            
+            // Limpiar sesión previa al cargar la página de login
+            // Esto asegura que siempre se muestre el formulario
+            sessionStorage.removeItem('adminLogged');
+            sessionStorage.removeItem('adminPhone');
+            sessionStorage.removeItem('adminLoginTime');
+
+            const loginBtn = document.getElementById('loginBtn');
+            const phoneInput = document.getElementById('adminPhone');
+            const passwordInput = document.getElementById('adminPassword');
+            const errorMsg = document.getElementById('loginError');
+            let isLoading = false;
+
+            function handleLogin() {
+                if (isLoading) return;
+                
+                const phone = phoneInput ? phoneInput.value.trim() : '';
+                const password = passwordInput ? passwordInput.value : '';
+
+                if (!phone) {
+                    showToast('📱 Ingresa el número de teléfono', true);
+                    phoneInput?.focus();
+                    return;
+                }
+                
+                if (!password) {
+                    showToast('🔐 Ingresa la contraseña', true);
+                    passwordInput?.focus();
+                    return;
+                }
+                
+                if (!/^\d{9,}$/.test(phone)) {
+                    showToast('⚠️ Número de teléfono inválido (9 dígitos mínimo)', true);
+                    phoneInput?.focus();
+                    return;
+                }
+                
+                if (!/^\d{6}$/.test(password)) {
+                    showToast('⚠️ La contraseña debe tener 6 dígitos', true);
+                    passwordInput?.focus();
+                    return;
+                }
+
+                isLoading = true;
+                const originalText = loginBtn.innerHTML;
+                loginBtn.innerHTML = '<span class="loading-spinner"></span> Verificando...';
+                loginBtn.disabled = true;
+
+                setTimeout(() => {
+                    if (phone === ADMIN_CREDENTIALS.phone && password === ADMIN_CREDENTIALS.password) {
+                        sessionStorage.setItem('adminLogged', 'true');
+                        sessionStorage.setItem('adminPhone', phone);
+                        sessionStorage.setItem('adminLoginTime', Date.now());
+                        
+                        showToast('✅ Acceso concedido, redirigiendo...');
+                        
+                        setTimeout(() => {
+                            window.location.href = 'admin.html';
+                        }, 500);
+                    } else {
+                        errorMsg.style.display = 'block';
+                        if (phoneInput) phoneInput.value = '';
+                        if (passwordInput) passwordInput.value = '';
+                        phoneInput?.focus();
+                        
+                        setTimeout(() => {
+                            if (errorMsg) errorMsg.style.display = 'none';
+                        }, 3000);
+                        
+                        loginBtn.innerHTML = originalText;
+                        loginBtn.disabled = false;
+                        isLoading = false;
+                    }
+                }, 800);
+            }
+
+            if (loginBtn) {
+                loginBtn.addEventListener('click', handleLogin);
+            }
+
+            if (phoneInput) {
+                phoneInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        passwordInput?.focus();
+                    }
+                });
+            }
+
+            if (passwordInput) {
+                passwordInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleLogin();
+                    }
+                });
+            }
+
+            // ========== MODO OSCURO ==========
+            const themeToggle = document.getElementById('themeToggle');
+            const body = document.body;
+
+            function setTheme(theme) {
+                if (!body || !themeToggle) return;
+                if (theme === 'dark') {
+                    body.classList.add('dark-mode');
+                    themeToggle.classList.add('dark');
+                } else {
+                    body.classList.remove('dark-mode');
+                    themeToggle.classList.remove('dark');
+                }
+                localStorage.setItem('adminLoginTheme', theme);
+            }
+
+            if (themeToggle) {
+                themeToggle.addEventListener('click', () => {
+                    const isDark = body.classList.contains('dark-mode');
+                    setTheme(isDark ? 'light' : 'dark');
+                });
+            }
+
+            const savedTheme = localStorage.getItem('adminLoginTheme');
+            if (savedTheme === 'dark') setTheme('dark');
+            
+            if (!localStorage.getItem('adminLoginTheme') && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                setTheme('dark');
+            }
+
+            window.addEventListener('beforeunload', () => {
+                if (slideInterval) clearInterval(slideInterval);
+            });
+
+            console.log('🔐 Credenciales de prueba (Admin):');
+            console.log('   📱 Teléfono: 914491874');
+            console.log('   🔑 Contraseña: 123456 (6 dígitos)');
+        })();
+    </script>
+</body>
+</html>

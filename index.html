@@ -2,190 +2,268 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Kiosco - Tu Tienda</title>
-    <link rel="manifest" href="manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="theme-color" content="#4F46E5">
+    <meta name="description" content="Kiosco - Tu tienda de confianza con los mejores productos al mejor precio">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Kiosco">
+    <title>Kiosco - Tu tienda de confianza</title>
+
+    <!-- PWA Manifest (opcional para pruebas locales) -->
+    <!-- <link rel="manifest" href="manifest.json"> -->
     <link rel="apple-touch-icon" href="assets/icons/icon-192x192.png">
-    <meta name="theme-color" content="#6366f1">
+
+    <!-- CSS -->
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1"></script>
-    <style>
-        /* Estilos adicionales para el modal de datos del cliente */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(5px);
-            z-index: 2000;
-            justify-content: center;
-            align-items: center;
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Librerías externas -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1" defer></script>
+
+    <!-- Service Worker Registration (comentado para pruebas locales sin servidor HTTPS) -->
+    <!--
+    <script>
+        if ('serviceWorker' in navigator && window.location.protocol === 'http:') {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('✅ Service Worker registrado:', reg.scope))
+                    .catch(err => console.log('❌ Error registrando Service Worker:', err));
+            });
         }
-        .modal-content {
-            background: var(--white);
-            border-radius: 16px;
-            max-width: 400px;
-            width: 90%;
-            animation: fadeInUp 0.3s ease;
-        }
-        body.dark-mode .modal-content {
-            background: #1e293b;
-        }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .cart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .close-form {
-            font-size: 1.5rem;
-            cursor: pointer;
-        }
-    </style>
+    </script>
+    -->
 </head>
-
 <body>
-    <header>
-        <a href="index.html" class="logo-link" style="text-decoration: none;">
-            <div class="logo">
-                <h1>🛒 Kiosco</h1>
-                <p>Tu tienda de confianza</p>
+    <!-- Navbar -->
+    <nav class="navbar" aria-label="Navegación principal">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <div class="logo-icon" aria-hidden="true">🛒</div>
+                <div class="brand-text">
+                    <h1 id="storeName">Kiosco</h1>
+                    <p>Tu tienda de confianza</p>
+                </div>
             </div>
-        </a>
-        <div style="display: flex; gap: 1rem; align-items: center;">
-            <div class="theme-toggle" id="themeToggle">
-                <span>☀️</span>
-                <div class="toggle-switch"></div>
-                <span>🌙</span>
+            <div class="nav-actions">
+                <div class="theme-toggle" id="themeToggle" role="button" tabindex="0" aria-label="Cambiar tema oscuro/claro">
+                    <span class="theme-icon light" aria-hidden="true">☀️</span>
+                    <div class="toggle-switch"></div>
+                    <span class="theme-icon dark" aria-hidden="true">🌙</span>
+                </div>
+                <a href="client-orders.html" class="nav-btn orders-btn" aria-label="Ver mis pedidos">
+                    📜 Mis Pedidos
+                </a>
+                <button id="adminAccessBtn" class="nav-btn admin-btn" aria-label="Acceso administrador">
+                    👑 Admin
+                </button>
             </div>
-            <a href="client-orders.html" class="btn-history" style="background: #3b82f6; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 50px; cursor: pointer; text-decoration: none;">📜 Mis Pedidos</a>
-            <button id="adminAccessBtn" class="btn-admin">👑 Admin</button>
         </div>
-    </header>
+    </nav>
 
-    <div class="welcome-banner">
-        <p>✨ ¡Bienvenido! Explora nuestros productos y haz tu pedido ✨</p>
+    <!-- Hero Banner -->
+    <section class="hero" aria-label="Banner principal">
+        <div class="hero-bg-particles" aria-hidden="true"></div>
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span class="badge-icon" aria-hidden="true">✨</span>
+                Bienvenido a Kiosco
+                <span class="badge-icon" aria-hidden="true">✨</span>
+            </div>
+            <h1 class="hero-title">
+                Los mejores productos<br>
+                <span class="hero-gradient">al mejor precio</span>
+            </h1>
+            <p class="hero-description">
+                Descubre nuestra amplia variedad de productos, con delivery rápido y atención 24/7
+            </p>
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <span class="stat-number" id="heroProducts">0</span>
+                    <span class="stat-label">Productos</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">24/7</span>
+                    <span class="stat-label">Atención</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" aria-hidden="true">🚀</span>
+                    <span class="stat-label">Delivery Rápido</span>
+                </div>
+            </div>
+            <div class="hero-actions">
+                <button class="hero-btn primary" id="exploreBtn" aria-label="Explorar productos disponibles">
+                    Explorar productos
+                    <span aria-hidden="true">↓</span>
+                </button>
+                <a href="https://wa.me/51914491874" class="hero-btn secondary" target="_blank" rel="noopener noreferrer" aria-label="Contactar por WhatsApp">
+                    💬 Contactar por WhatsApp
+                </a>
+            </div>
+        </div>
+        <div class="hero-glow" aria-hidden="true"></div>
+        <div class="hero-wave" aria-hidden="true">
+            <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                <path d="M0 64L60 58.7C120 53.3 240 42.7 360 48C480 53.3 600 74.7 720 80C840 85.3 960 74.7 1080 64C1200 53.3 1320 42.7 1380 37.3L1440 32V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0V64Z" fill="currentColor" fill-opacity="0.08"/>
+            </svg>
+        </div>
+    </section>
+
+    <!-- Filtros -->
+    <div class="filters-section" aria-label="Filtros de búsqueda">
+        <div class="filters-container">
+            <div class="search-wrapper">
+                <span class="search-icon" aria-hidden="true">🔍</span>
+                <input type="text" id="searchProducts" class="search-input" placeholder="Buscar productos por nombre..." aria-label="Buscar productos">
+                <button class="search-clear" id="clearSearchBtn" aria-label="Limpiar búsqueda">✕</button>
+            </div>
+            <div class="filters-group">
+                <div class="filter-dropdown">
+                    <select id="sortBy" class="filter-select" aria-label="Ordenar productos por">
+                        <option value="default">📊 Ordenar por</option>
+                        <option value="price_asc">💰 Precio: menor a mayor</option>
+                        <option value="price_desc">💰 Precio: mayor a menor</option>
+                        <option value="name_asc">🔤 Nombre: A-Z</option>
+                        <option value="name_desc">🔤 Nombre: Z-A</option>
+                    </select>
+                </div>
+                <div class="price-filters">
+                    <div class="price-input-wrapper">
+                        <span aria-hidden="true">S/</span>
+                        <input type="number" id="minPrice" placeholder="Mínimo" aria-label="Precio mínimo">
+                    </div>
+                    <span class="price-sep" aria-hidden="true">—</span>
+                    <div class="price-input-wrapper">
+                        <span aria-hidden="true">S/</span>
+                        <input type="number" id="maxPrice" placeholder="Máximo" aria-label="Precio máximo">
+                    </div>
+                    <button id="clearPriceBtn" class="clear-price" aria-label="Limpiar filtros de precio">✕</button>
+                </div>
+            </div>
+        </div>
+        <div class="active-filters" id="activeFilters" aria-label="Filtros activos"></div>
     </div>
 
-    <div class="search-advanced" style="margin: 0 1.5rem 1rem 1.5rem;">
-        <div class="search-filters" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-            <input type="text" id="searchProducts" placeholder="🔍 Buscar productos..." style="flex:2; padding: 0.8rem; border-radius: 50px; border: 1px solid #ddd;">
-            <select id="sortBy" style="padding: 0.8rem; border-radius: 50px; border: 1px solid #ddd;">
-                <option value="default">Ordenar por</option>
-                <option value="price_asc">Precio: menor a mayor</option>
-                <option value="price_desc">Precio: mayor a menor</option>
-                <option value="name_asc">Nombre: A-Z</option>
-                <option value="name_desc">Nombre: Z-A</option>
-            </select>
-            <input type="number" id="minPrice" placeholder="Mín S/" style="width: 100px; padding: 0.8rem; border-radius: 50px; border: 1px solid #ddd;">
-            <input type="number" id="maxPrice" placeholder="Máx S/" style="width: 100px; padding: 0.8rem; border-radius: 50px; border: 1px solid #ddd;">
-        </div>
-    </div>
-
-    <main>
-        <aside id="categoriesSidebar">
-            <h2>📂 Categorías</h2>
-            <div id="categoriesList" class="categories-list"></div>
+    <!-- Main Content -->
+    <main class="main-content">
+        <aside class="sidebar" aria-label="Barra lateral de categorías">
+            <div class="categories-card">
+                <div class="categories-header">
+                    <h2 class="categories-title">
+                        <span aria-hidden="true">📂</span> Categorías
+                    </h2>
+                    <button id="resetCategoryBtn" class="reset-cat-btn" aria-label="Mostrar todas las categorías">↺</button>
+                </div>
+                <div id="categoriesList" class="categories-list" role="list" aria-label="Lista de categorías">
+                    <div class="skeleton-category" aria-hidden="true"></div>
+                    <div class="skeleton-category" aria-hidden="true"></div>
+                    <div class="skeleton-category" aria-hidden="true"></div>
+                </div>
+            </div>
+            
+            <div class="promo-banner" aria-label="Ofertas especiales">
+                <div class="promo-icon" aria-hidden="true">🎉</div>
+                <h4>¡Ofertas Especiales!</h4>
+                <p>Lleva 3 productos y obtén 10% de descuento</p>
+                <div class="promo-code">Código: <span>KIOSCO10</span></div>
+            </div>
         </aside>
 
-        <section id="productsSection">
+        <section class="products-section" aria-label="Listado de productos">
             <div class="section-header">
-                <h2 id="currentCategoryTitle">Productos</h2>
+                <div class="section-title-wrapper">
+                    <h2 id="currentCategoryTitle" class="section-title">Todos los productos</h2>
+                    <span id="productsCount" class="products-count" aria-live="polite">0 productos</span>
+                </div>
+                <div class="view-toggle" role="group" aria-label="Cambiar vista de productos">
+                    <button class="view-btn active" data-view="grid" aria-label="Vista cuadrícula" aria-pressed="true">📱</button>
+                    <button class="view-btn" data-view="list" aria-label="Vista lista" aria-pressed="false">📋</button>
+                </div>
             </div>
-            <div id="productsGrid" class="products-grid">
-                <div class="skeleton-card" style="height: 280px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: loading 1.5s infinite; border-radius: 16px;"></div>
-                <div class="skeleton-card" style="height: 280px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: loading 1.5s infinite; border-radius: 16px;"></div>
-                <div class="skeleton-card" style="height: 280px; background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: loading 1.5s infinite; border-radius: 16px;"></div>
+            <div id="productsGrid" class="products-grid" role="list" aria-label="Productos disponibles">
+                <div class="skeleton-card" aria-hidden="true"></div>
+                <div class="skeleton-card" aria-hidden="true"></div>
+                <div class="skeleton-card" aria-hidden="true"></div>
+                <div class="skeleton-card" aria-hidden="true"></div>
+            </div>
+            <div id="loadMoreBtn" class="load-more" style="display: none;">
+                <button class="load-more-btn" aria-label="Cargar más productos">Cargar más productos</button>
+            </div>
+            <div id="endMessage" class="end-message" style="display: none;">
+                <span aria-hidden="true">🏁</span>
+                <p>Has llegado al final de los productos</p>
             </div>
         </section>
     </main>
 
-    <!-- Modal de dirección de envío -->
-    <div id="deliveryModal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="cart-header">
-                <h3>🚚 Dirección de envío</h3>
-                <span class="close-delivery" style="font-size:1.5rem; cursor:pointer;">&times;</span>
-            </div>
-            <div style="padding: 1rem;">
-                <input type="text" id="deliveryAddress" placeholder="Tu dirección completa" style="width: 100%; padding: 0.8rem; margin-bottom: 1rem; border-radius: 12px; border: 1px solid #ddd;">
-                <div id="map" style="height: 250px; border-radius: 12px; margin-bottom: 1rem;"></div>
-                <div class="delivery-options" style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                    <button id="deliverNowBtn" class="btn-primary" style="background: #10b981; flex:1;">🚗 Traer ahora</button>
-                    <button id="scheduleLaterBtn" class="btn-primary" style="background: #f59e0b; flex:1;">📅 Programar</button>
-                </div>
-                <div id="schedulePicker" style="display: none; margin-top: 1rem;">
-                    <input type="datetime-local" id="scheduleDate" style="width: 100%; padding: 0.8rem; border-radius: 12px; margin-bottom: 0.5rem;">
-                    <button id="confirmScheduleBtn" class="btn-primary" style="background: #10b981; width:100%;">Confirmar programación</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Botón flotante carrito -->
-    <button id="cartFab" class="cart-fab">
-        🛒
-        <span id="cartBadge" class="badge">0</span>
+    <!-- Cart FAB -->
+    <button id="cartFab" class="cart-fab" aria-label="Ver carrito de compras">
+        <span class="cart-icon" aria-hidden="true">🛒</span>
+        <span id="cartBadge" class="cart-badge" aria-live="polite">0</span>
+        <div class="cart-fab-ripple" aria-hidden="true"></div>
     </button>
 
-    <!-- Modal del carrito -->
-    <div id="cartModal" class="cart-modal">
-        <div class="cart-modal-content">
-            <div class="cart-header">
-                <h3>🛍️ Mi Carrito</h3>
-                <span class="close-cart">&times;</span>
+    <!-- WhatsApp Float -->
+    <a href="https://wa.me/51914491874" id="whatsappFloat" class="whatsapp-float" target="_blank" rel="noopener noreferrer" aria-label="Contactar por WhatsApp">
+        <span aria-hidden="true">💬</span>
+        <div class="whatsapp-pulse" aria-hidden="true"></div>
+    </a>
+
+    <!-- Cart Modal -->
+    <div id="cartModal" class="modal" role="dialog" aria-modal="true" aria-label="Carrito de compras" hidden>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🛍️ Mi Carrito <span id="cartItemCount" class="cart-item-count">0</span></h3>
+                <span class="close-modal close-cart" aria-label="Cerrar carrito">&times;</span>
             </div>
-            <div id="cartItemsList" class="cart-items-list"></div>
-            <div class="cart-total">
-                <strong>Subtotal: S/ <span id="cartSubtotal">0.00</span></strong><br>
-                <small>Envío: S/ <span id="deliveryCost">0.00</span></small><br>
-                <strong>Total: S/ <span id="cartTotal">0.00</span></strong>
+            <div id="cartItemsList" class="cart-items-list" role="list" aria-label="Productos en el carrito"></div>
+            <div class="cart-summary">
+                <div class="cart-row">Subtotal: <span id="cartSubtotal">S/ 0.00</span></div>
+                <div class="cart-row">Envío: <span id="cartDelivery">S/ 0.00</span></div>
+                <div class="cart-row total">Total: <span id="cartTotal">S/ 0.00</span></div>
             </div>
-            <button id="checkoutBtn" class="btn-primary">📱 Continuar</button>
+            <button id="checkoutBtn" class="checkout-btn" aria-label="Proceder al pago">📱 Continuar</button>
         </div>
     </div>
 
-    <!-- Toast de notificaciones -->
-    <div id="toastNotification" class="toast"></div>
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="modal" role="dialog" aria-modal="true" aria-label="Datos de pago" hidden>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>💰 Datos de pago</h3>
+                <span class="close-modal close-payment" aria-label="Cerrar formulario de pago">&times;</span>
+            </div>
+            <div class="payment-form">
+                <input type="text" id="customerName" placeholder="Nombre completo *" aria-label="Nombre completo" required>
+                <input type="tel" id="customerPhone" placeholder="Teléfono *" aria-label="Número de teléfono" required>
+                <input type="text" id="deliveryAddress" placeholder="Dirección de entrega *" aria-label="Dirección de entrega" required>
+                <select id="paymentMethod" aria-label="Método de pago">
+                    <option value="yape">📱 Yape</option>
+                    <option value="plin">📱 Plin</option>
+                    <option value="transferencia">🏦 Transferencia</option>
+                    <option value="efectivo">💵 Efectivo contra entrega</option>
+                </select>
+                <div id="paymentInfo" class="payment-info" role="status" aria-live="polite">📱 Yape al número <strong>+51 914 491 874</strong></div>
+                <button id="confirmPaymentBtn" class="confirm-btn" aria-label="Confirmar pedido">✅ Confirmar pedido</button>
+            </div>
+        </div>
+    </div>
 
-    <!-- Botón flotante WhatsApp -->
-    <a href="https://wa.me/51914491874" target="_blank" class="whatsapp-float" style="position:fixed; bottom:30px; left:30px; background:#25D366; color:white; width:55px; height:55px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:28px; text-decoration:none; box-shadow:0 4px 12px rgba(0,0,0,0.2); z-index:200; transition:all 0.3s;">
-        💬
-    </a>
+    <div id="toastNotification" class="toast" role="status" aria-live="polite" aria-label="Notificación"></div>
 
-    <script src="js/database.js"></script>
-    <script src="js/client.js"></script>
-    <script>
-        // Registrar Service Worker para PWA
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('Service Worker registrado:', reg))
-                    .catch(err => console.log('Error al registrar SW:', err));
+    <!-- Script principal modular -->
+    <script type="module" src="js/client.js"></script>
+    
+    <!-- Script para redirigir al login de admin (CORREGIDO) -->
+    <script type="module">
+        const adminBtn = document.getElementById('adminAccessBtn');
+        if (adminBtn) {
+            adminBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('🔄 Redirigiendo a login-admin.html');
+                window.location.href = 'login-admin.html';
             });
         }
-        
-        // Solicitar permisos de notificación
-        if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-            setTimeout(() => {
-                Notification.requestPermission();
-            }, 5000);
-        }
-        
-        // Cerrar modal de delivery
-        document.querySelector('.close-delivery')?.addEventListener('click', () => {
-            document.getElementById('deliveryModal').style.display = 'none';
-        });
     </script>
 </body>
 </html>
